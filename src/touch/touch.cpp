@@ -18,8 +18,10 @@
 
 namespace {
 
-// Dedicated bus. The display already owns HSPI at 55MHz; the XPT2046 must stay
-// at or below 2.5MHz or its reads are unreliable.
+// Dedicated bus. The display is on HSPI - which is only true because
+// USE_HSPI_PORT is set in platformio.ini; TFT_eSPI defaults to VSPI, and
+// sharing it with this driver makes touch fail intermittently. The XPT2046 must
+// also stay at or below 2.5MHz or its reads are unreliable.
 SPIClass touchSPI(VSPI);
 XPT2046_Touchscreen ts(TOUCH_CS_PIN, TOUCH_IRQ_PIN);
 

@@ -52,6 +52,19 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
 
 ### Fixed
 
+- **Touch shared an SPI peripheral with the display.** TFT_eSPI defaults to VSPI
+  on the ESP32 unless `USE_HSPI_PORT` is set, and the XPT2046 driver claims VSPI
+  too — so both were driving one peripheral, at 55 MHz and 2.5 MHz. That fails
+  intermittently rather than outright, which is why touch worked for a while and
+  then stopped as the draw pattern changed. `USE_HSPI_PORT` is now set, and it
+  is the correct port anyway: MOSI 13 / MISO 12 / SCLK 14 / CS 15 are HSPI's
+  native pins, so the display gets direct hardware mapping rather than the GPIO
+  matrix. The comment in `touch.cpp` asserted the display "already owns HSPI" —
+  an assumption written and never checked.
+- **The clock picker called style 9 "Custom rotation"** while two hints on the
+  same page, the logs, the README and upstream all called it "Cycle All". Now
+  "Cycle All" everywhere, and the rotation card is headed to match.
+
 - **Factory reset erased nothing.** `handleReset()` still opened the upstream
   `"pcmonitor"` NVS namespace, which this port renamed to `"pixelclock"` — so a
   reset cleared an empty legacy namespace, wiped the WiFi credentials, rebooted,

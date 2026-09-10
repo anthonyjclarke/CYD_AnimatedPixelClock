@@ -139,13 +139,13 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                   <option value="14" %SEL_CLOCKSTYLE_14%>Weather Clock</option>
                   <option value="15" %SEL_CLOCKSTYLE_15%>Bomberman</option>
                   <option value="16" %SEL_CLOCKSTYLE_16%>TRON</option>
-                  <option value="9" %SEL_CLOCKSTYLE_9%>Custom rotation</option>
+                  <option value="9" %SEL_CLOCKSTYLE_9%>Cycle All</option>
                 </select>
               </div>
             </div>
 
             <div class="subcard" id="cycleSettings" style="display:none">
-              <h3>Clock rotation</h3>
+              <h3>Cycle All rotation</h3>
               <p class="field-hint">Enable clocks, move them into order, and set seconds per clock (5-3600). Weather is skipped until configured.</p>
               <input type="hidden" id="cycleConfig" name="cycleConfig" value="%V_CYCLECONFIG%">
               <div id="cycleRows"></div>
