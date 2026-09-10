@@ -146,6 +146,41 @@ verified on hardware. See **Port status** in `README.md`.
   band, with whatever remains becoming sky. Sizing top-down let a larger
   `SPRITE_SCALE` push the date and day rows off the bottom of the canvas.
 
+### Fixed — defaults audit
+
+Upstream's defaults were tuned for a 128×64 panel where screen space was scarce.
+On a canvas with 25% more width and 87% more height several read as "broken"
+rather than "conservative". Audited in one pass:
+
+- **Matrix Rain covered less than half the canvas.** `MX_COLS` was fixed at 21
+  and `MX_ROWS` at 8 — a 126×64 px grid — so the right 21% and bottom 47% of a
+  160×120 canvas had no rain at all. Both now derive from the canvas: 26×15
+  cells here, 39×20 on the 4.0″.
+- **Digit collision boxes were 20% too small** in Matrix, Asteroids and Dino.
+  All three still used `16×21`, the size-3 glyph, where the digits are now size
+  4 (20×28 inked) — so digit shatter, decode masking and digit swap did not
+  cover the digits they targeted. Now `DIGIT_GLYPH_W` / `7 * DIGIT_TEXT_SIZE`.
+- Asteroids' pellet pitch and the centred-digit positions in Matrix, Asteroids
+  and Dino were likewise still size-3 constants.
+- Dino's fixed screen position was an absolute 12 px; now proportional.
+
+Defaults changed, each because the canvas moved rather than as a taste call:
+
+| Setting | Was | Now | Why |
+|:--|:--|:--|:--|
+| Asteroids / Dino / Matrix / Snake — show date | off | **on** | Cost 16% of a 64 px panel, 8% here, and the sky band above is empty |
+| Asteroids rock count | 2 | **3** | Play area is 2.3× larger |
+| Pac-Man patrol pellets | 8 | **10** | Patrol row is 25% wider |
+| Snake body length | 8 | **10** | Arena grew from 512 to 1200 cells |
+| Pong paddle width | 20 | **25** | Canvas is 25% wider |
+| Space patrol speed | 0.5 | **0.7** | Patrol span grew 36%, so a sweep took that much longer |
+| Mario smooth animation | off | **on** | The sprite now has four real frames including a standing pose |
+
+Left alone deliberately: Matrix density (the grid fix already raised it in
+absolute terms), Tetris small-clock mode (a large behavioural change, not a
+sizing one), Snake wall border, Asteroids transparency, TRON bike style and
+Dino clouds — all genuine taste settings that the canvas change does not touch.
+
 ### Fixed
 
 - **A `ColorSlot` could ship with no default.** `color_slots.h` declared

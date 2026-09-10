@@ -22,12 +22,12 @@
 #include "clock_globals.h"
 
 // ========== Layout / tuning ==========
-#define DINO_TIME_Y_TOP 16       // digit top when the date row is shown
-#define DINO_TIME_Y_CENTER 21    // digit top when centred (date off)
+#define DINO_TIME_Y_TOP TIME_Y_BASE
+#define DINO_TIME_Y_CENTER ((SCREEN_HEIGHT - DIGIT_H) / 2)
 #define DINO_TRIGGER_SECOND 56
-#define DINO_DIGIT_W 16
+#define DINO_DIGIT_W DIGIT_GLYPH_W
 #define DINO_GROUND_Y GROUND_Y   // ground line; feet sit on it
-#define DINO_X 12                // dino's fixed screen position
+#define DINO_X (SCREEN_WIDTH / 13)  // dino's fixed screen position
 #define DINO_MAX_CACTI 3
 #define DINO_MAX_CLOUDS 2
 #define DINO_MAX_DUST 6

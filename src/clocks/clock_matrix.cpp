@@ -25,16 +25,19 @@
 #include "clock_globals.h"
 
 // ========== Layout / tuning ==========
-#define MX_COLS 21               // 6px char columns (126px + 1px margin each side)
-#define MX_ROWS 8                // 8px char rows
 #define MX_CELL_W 6
 #define MX_CELL_H 8
 #define MX_X_OFF 1
-#define MX_TIME_Y_TOP 16         // digit top when the date row is shown
-#define MX_TIME_Y_CENTER 21      // digit top when centred (date off)
+// Rain fills the canvas. These were fixed at 21 x 8 - a 126px-wide, 64px-tall
+// grid - so on a 160x120 canvas the right 21% and the bottom 47% had no rain.
+#define MX_COLS ((SCREEN_WIDTH - 2 * MX_X_OFF) / MX_CELL_W)
+#define MX_ROWS (SCREEN_HEIGHT / MX_CELL_H)
+#define MX_TIME_Y_TOP TIME_Y_BASE
+#define MX_TIME_Y_CENTER ((SCREEN_HEIGHT - DIGIT_H) / 2)
 #define MX_TRIGGER_SECOND 56
-#define MX_DIGIT_W 16            // size-3 digit box width
-#define MX_DIGIT_H 21            // size-3 digit box height
+// The digit box a changed digit decodes inside: the inked glyph, not the cell.
+#define MX_DIGIT_W DIGIT_GLYPH_W
+#define MX_DIGIT_H (7 * DIGIT_TEXT_SIZE)
 #define MX_DECODE_TIME 1.2f      // seconds a changed digit spends decoding
 #define MX_DECODE_SWAP 0.08f     // seconds between decode glyph swaps
 #define MX_MUTATE_RATE 1.2f      // avg glyph mutations per visible cell per second

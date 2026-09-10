@@ -199,7 +199,7 @@ void loadSettings() {
     preferences.putUChar("dimBright", sanitizeBrightnessValue(50));
     preferences.putUChar("marioBnceH", 35);   // Default: 3.5
     preferences.putUChar("marioBnceS", 6);    // Default: 0.6
-    preferences.putBool("marioSmooth", false); // Default: 2-frame animation
+    preferences.putBool("marioSmooth", true);  // Default: 4-frame walk cycle
     preferences.putUChar("marioWalkSpd", 20); // Default: 2.0
     preferences.putBool("marioEnctr", true);  // Default: idle encounters on
     preferences.putUChar("marioEncFrq", 1);   // Default: Normal frequency
@@ -207,9 +207,9 @@ void loadSettings() {
     preferences.putUChar("pongBallSpd", 18);  // Default: 18
     preferences.putUChar("pongBncStr", 3);    // Default: 0.3
     preferences.putUChar("pongBncDmp", 85);   // Default: 0.85
-    preferences.putUChar("pongPadWid", 20);   // Default: 20
+    preferences.putUChar("pongPadWid", 25);   // Default: 25 (canvas is 25% wider)
     preferences.putUChar("spaceChar", 0);     // Default: Invader
-    preferences.putUChar("spacePatrol", 5);   // Default: 0.5
+    preferences.putUChar("spacePatrol", 7);   // Default: 0.7 (patrol span grew 36%)
     preferences.putUChar("spaceAttack", 25);  // Default: 2.5
     preferences.putUChar("spaceLaser", 40);   // Default: 4.0
     preferences.putUChar("spaceExpGrv", 5);   // Default: 0.5
@@ -345,7 +345,7 @@ void loadSettings() {
   settings.marioBounceSpeed =
       preferences.getUChar("marioBnceS", 6); // Default: 0.6
   settings.marioSmoothAnimation =
-      preferences.getBool("marioSmooth", false); // Default: 2-frame
+      preferences.getBool("marioSmooth", true); // Default: 2-frame
   settings.marioWalkSpeed =
       preferences.getUChar("marioWalkSpd", 20); // Default: 2.0
   settings.marioIdleEncounters =
@@ -361,7 +361,7 @@ void loadSettings() {
   settings.pongBounceDamping =
       preferences.getUChar("pongBncDmp", 85); // Default: 0.85
   settings.pongPaddleWidth =
-      preferences.getUChar("pongPadWid", 20); // Default: 20
+      preferences.getUChar("pongPadWid", 25); // Default: 20
   settings.pongHorizontalBounce =
       preferences.getBool("pongHorizBnc", true); // Default: true
   settings.pongDigitShatter =
@@ -373,7 +373,7 @@ void loadSettings() {
   settings.pacmanMouthSpeed =
       preferences.getUChar("pacmanMouthSpd", 10); // Default: 1.0 Hz (shortened key name)
   settings.pacmanPelletCount =
-      preferences.getUChar("pacmanPellCount", 8); // Default: 8 (shortened key name)
+      preferences.getUChar("pacmanPellCount", 10); // Default: 8 (shortened key name)
   settings.pacmanPelletRandomSpacing =
       preferences.getBool("pacmanPellRand", true); // Default: true (shortened key name)
   settings.pacmanBounceEnabled =
@@ -381,7 +381,7 @@ void loadSettings() {
   settings.spaceCharacterType =
       preferences.getUChar("spaceChar", 0); // Default: Invader
   settings.spacePatrolSpeed =
-      preferences.getUChar("spacePatrol", 5); // Default: 0.5
+      preferences.getUChar("spacePatrol", 7); // Default: 0.5
   settings.spaceAttackSpeed =
       preferences.getUChar("spaceAttack", 25); // Default: 2.5
   settings.spaceLaserSpeed =
@@ -391,11 +391,11 @@ void loadSettings() {
   settings.snakeSpeed =
       preferences.getUChar("snakeSpeed", 12); // Default: 1.2 px/frame
   settings.snakeLength =
-      preferences.getUChar("snakeLen", 8); // Default: 8 segments
+      preferences.getUChar("snakeLen", 10); // Default: 8 segments
   settings.snakeWallBorder =
       preferences.getBool("snakeBorder", false); // Default: no frame
   settings.snakeShowDate =
-      preferences.getBool("snakeDate", false); // Default: hidden (centred clock)
+      preferences.getBool("snakeDate", true); // Default: hidden (centred clock)
   settings.tetrisFallSpeed =
       preferences.getUChar("tetFallSpd", 12); // Default: 1.2
   settings.tetrisBlockStyle =
@@ -423,11 +423,11 @@ void loadSettings() {
   settings.asteroidsShipSpeed =
       preferences.getUChar("astShipSpd", 12); // Default: 1.2
   settings.asteroidsRockCount =
-      preferences.getUChar("astRocks", 2); // Default: 2 rocks
+      preferences.getUChar("astRocks", 3); // Default: 2 rocks
   settings.asteroidsRockSpeed =
       preferences.getUChar("astRockSpd", 8); // Default: 0.8
   settings.asteroidsShowDate =
-      preferences.getBool("astDate", false); // Default: hidden (centred clock)
+      preferences.getBool("astDate", true); // Default: hidden (centred clock)
   settings.asteroidsTransparent =
       preferences.getBool("astTransp", true); // Default: transparent digits
   settings.dinoSpeed =
@@ -437,13 +437,13 @@ void loadSettings() {
   settings.dinoShowClouds =
       preferences.getBool("dinoClouds", true); // Default: clouds on
   settings.dinoShowDate =
-      preferences.getBool("dinoDate", false); // Default: hidden (centred clock)
+      preferences.getBool("dinoDate", true); // Default: hidden (centred clock)
   settings.matrixRainSpeed =
       preferences.getUChar("mxSpeed", 12); // Default: 1.2
   settings.matrixRainDensity =
       preferences.getUChar("mxDensity", 1); // Default: normal
   settings.matrixShowDate =
-      preferences.getBool("mxDate", false); // Default: hidden (centred clock)
+      preferences.getBool("mxDate", true); // Default: hidden (centred clock)
   settings.matrixTransparent =
       preferences.getBool("mxTransp", false); // Default: solid digit plates
   settings.mcMissileSpeed =

@@ -27,11 +27,11 @@
 #include <math.h>
 
 // ========== Layout / tuning ==========
-#define AST_TIME_Y_TOP 16        // digit top when the date row is shown
-#define AST_TIME_Y_CENTER 21     // digit top when centred (date off)
+#define AST_TIME_Y_TOP TIME_Y_BASE
+#define AST_TIME_Y_CENTER ((SCREEN_HEIGHT - DIGIT_H) / 2)
 #define AST_TRIGGER_SECOND 56
-#define AST_DIGIT_W 16           // size-3 digit box width
-#define AST_DIGIT_H 21           // size-3 digit box height
+#define AST_DIGIT_W DIGIT_GLYPH_W
+#define AST_DIGIT_H (7 * DIGIT_TEXT_SIZE)
 #define AST_MAX_ROCKS 8          // pool: configured count + split children
 #define AST_ROCK_VERTS 7
 #define AST_MAX_SHARDS 14
@@ -41,7 +41,7 @@
 #define AST_AIM_RATE 4.5f        // rad/s turn rate while aiming
 #define AST_AIM_TIMEOUT 2.0f     // fire anyway after this long aiming
 #define AST_MAX_REFIRES 2        // re-shots at a digit before force-shatter
-#define AST_PELLET_PITCH 3       // glyph cell pitch (size-3 numerals)
+#define AST_PELLET_PITCH DIGIT_TEXT_SIZE  // one glyph pixel of the digit row
 
 enum AstPhase { AST_IDLE, AST_AIM, AST_FIRE, AST_SHATTER };
 
