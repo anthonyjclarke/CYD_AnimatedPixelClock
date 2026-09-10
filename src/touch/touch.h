@@ -41,3 +41,7 @@ uint16_t touchRawY();
 
 // Persist calibration bounds to NVS and apply them immediately.
 void touchSetCalibration(uint16_t xMin, uint16_t xMax, uint16_t yMin, uint16_t yMax);
+
+// Erase stored calibration, returning to the compiled defaults. Part of a
+// factory reset; owns its own NVS namespace name.
+void touchClearCalibration();

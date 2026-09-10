@@ -145,6 +145,17 @@ void touchSetCalibration(uint16_t xMin, uint16_t xMax, uint16_t yMin, uint16_t y
   DBG_INFO("Touch calibration saved x[%u..%u] y[%u..%u]", xMin, xMax, yMin, yMax);
 }
 
+void touchClearCalibration() {
+  Preferences prefs;
+  if (prefs.begin(NVS_NAMESPACE, false)) {
+    prefs.clear();
+    prefs.end();
+    calXMin = TOUCH_RAW_MIN; calXMax = TOUCH_RAW_MAX;
+    calYMin = TOUCH_RAW_MIN; calYMax = TOUCH_RAW_MAX;
+    DBG_INFO("Touch calibration erased");
+  }
+}
+
 #else  // !HAS_RESISTIVE_TOUCH - capacitive board, or touch not fitted.
 // Stubs only. Nothing here claims the touch GPIOs, which on a capacitive CYD
 // belong to a CST820 on I2C rather than to an SPI controller.
@@ -157,5 +168,6 @@ int16_t touchY() { return 0; }
 uint16_t touchRawX() { return 0; }
 uint16_t touchRawY() { return 0; }
 void touchSetCalibration(uint16_t, uint16_t, uint16_t, uint16_t) {}
+void touchClearCalibration() {}
 
 #endif  // HAS_RESISTIVE_TOUCH

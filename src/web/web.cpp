@@ -8,6 +8,7 @@
 #include "web.h"
 #include "../config/globals.h"
 #include "../config/settings.h"
+#include "../touch/touch.h"
 #include "../network/network.h"
 #include "../utils/utils.h"
 #include "../clocks/clocks.h"
@@ -1477,10 +1478,12 @@ void handleReset() {
  server.send(200, "text/html", html);
  delay(1000);
 
- // Erase all application settings from NVS
- preferences.begin("pcmonitor", false);
- preferences.clear();
- preferences.end();
+ // Erase all application settings and touch calibration. Each module clears
+ // its own namespace - naming them here is how this handler came to clear
+ // "pcmonitor" long after the port renamed the namespace to "pixelclock",
+ // leaving a factory reset that wiped WiFi and changed nothing else.
+ factoryResetSettings();
+ touchClearCalibration();
 
  // Erase WiFi credentials
  wifiManager.resetSettings();

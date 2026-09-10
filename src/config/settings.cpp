@@ -528,6 +528,17 @@ void loadSettings() {
   DBG_INFO("Settings loaded (v2.0 - Compact Grid Layout)");
 }
 
+void factoryResetSettings() {
+  Preferences prefs;
+  if (prefs.begin(NVS_NAMESPACE, false)) {
+    prefs.clear();
+    prefs.end();
+    DBG_INFO("Settings namespace '%s' erased", NVS_NAMESPACE);
+  } else {
+    DBG_ERROR("Could not open '%s' to erase it", NVS_NAMESPACE);
+  }
+}
+
 void saveSettings() {
   sanitizeBrightnessSettings();
   preferences.begin(NVS_NAMESPACE, false); // Read-write

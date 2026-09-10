@@ -25,10 +25,21 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
 
 ## [Unreleased] — 1.1.0-dev
 
-Nothing yet. See the [Roadmap](README.md#roadmap) for what is queued: the enemy
-sprites still drawn at the old abstraction level, magnifying the other styles'
-characters, scenery beyond Mario, and the eleven clock styles that have never
-been judged on hardware.
+### Fixed
+
+- **Factory reset erased nothing.** `handleReset()` still opened the upstream
+  `"pcmonitor"` NVS namespace, which this port renamed to `"pixelclock"` — so a
+  reset cleared an empty legacy namespace, wiped the WiFi credentials, rebooted,
+  and left every setting exactly as it was. Since a reset is the only practical
+  way to pick up the v1.0.0 defaults audit, it would have failed silently at the
+  moment it mattered most.
+- Each module now clears its own namespace — `factoryResetSettings()` in
+  `settings.cpp`, `touchClearCalibration()` in `touch.cpp` — so the name lives
+  in exactly one place per namespace and the handler cannot drift from it again.
+  Touch calibration is now cleared too, which a factory reset should always have
+  done.
+
+See the [Roadmap](README.md#roadmap) for what else is queued.
 
 ---
 
