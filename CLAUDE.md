@@ -89,9 +89,9 @@ Each is a considered exception, not an oversight:
 
 ## Persistence
 
-Settings live in NVS namespace `pixelclock`; touch calibration in `cydtouch`.
-Neither may be hardcoded. The 384 KB `spiffs` partition is unused, retained so a
-filesystem can be added later without repartitioning and losing settings.
+NVS namespace `pixelclock`; touch calibration in `cydtouch`. Neither may be
+hardcoded. The 384 KB `spiffs` partition is unused, retained so a filesystem can
+be added later without repartitioning and losing settings.
 
 ## Archive
 
