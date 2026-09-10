@@ -75,14 +75,32 @@ touch controller. No external wiring is required.
 | Spec       | CYD 2.8″ (`esp32-cyd-28`) | CYD 4.0″ (`esp32-cyd-40`) |
 |:-----------|:--------------------------|:--------------------------|
 | MCU        | ESP32 (ESP32-2432S028R)   | ESP32 (ESP32-2432S040)    |
-| Display    | ILI9341 · 320×240 · SPI   | ST7796S · 480×320 · SPI   |
-| Touch      | XPT2046 resistive         | XPT2046 resistive         |
-| Flash      | 4 MB · no PSRAM           | 4 MB · no PSRAM           |
-| Canvas     | 160×120 @ ×2              | 240×160 @ ×2              |
-| SPI freq   | 55 MHz                    | 27 MHz                    |
-| Backlight  | GPIO 21                   | GPIO 27                   |
-| LDR        | GPIO 34                   | not populated             |
-| RGB LED    | GPIO 4 / 16 / 17          | not populated             |
+| Display    | ILI9341 · 320×240 · SPI   | ILI9341 · 320×240 · SPI   | ST7796S · 480×320 · SPI   |
+| Touch      | XPT2046 or CST820 †       | XPT2046 resistive         | XPT2046 resistive         |
+| Flash      | 4 MB · no PSRAM           | 4 MB · no PSRAM           | 4 MB · no PSRAM           |
+| Canvas     | 160×120 @ ×2              | 160×120 @ ×2              | 240×160 @ ×2              |
+| SPI freq   | 55 MHz                    | 55 MHz                    | 27 MHz                    |
+| Backlight  | GPIO 21                   | GPIO 21                   | GPIO 27                   |
+| LDR        | GPIO 34                   | GPIO 34                   | not populated             |
+| RGB LED    | GPIO 4 / 16 / 17          | GPIO 4 / 16 / 17          | not populated             |
+
+† The 2.4″ ships in two revisions. **R** boards fit a resistive XPT2046 and work
+as-is. **C** boards fit a capacitive CST820 on I2C, which is not supported —
+build with `-DHAS_RESISTIVE_TOUCH=0` so the driver never claims those GPIOs.
+Everything except tap-to-change-style works either way.
+
+### First flash on a 2.4″
+
+The panel is the same 320×240 as the 2.8″, so the canvas and all fourteen clock
+layouts are identical — only the board revision differs. If the display is wrong,
+the symptom identifies the cause:
+
+| Symptom                        | Cause                | Fix                                     |
+|:-------------------------------|:---------------------|:-----------------------------------------|
+| Garbled, shifted or blank      | ST7789, not ILI9341  | `-DST7789_DRIVER=1` in place of ILI9341  |
+| Red and blue swapped           | Panel is BGR         | add `-DTFT_RGB_ORDER=TFT_BGR`            |
+| Image fine, tapping does nothing | Capacitive "C" board | `-DHAS_RESISTIVE_TOUCH=0`              |
+| Backlight always full          | Different BL GPIO    | change `-DTFT_BL=21`                     |
 
 Display SPI pins are identical on both boards: MOSI 13, SCLK 14, CS 15, DC 2,
 MISO 12, no reset line. Touch sits on its own bus: CLK 25, CS 33, MOSI 32,

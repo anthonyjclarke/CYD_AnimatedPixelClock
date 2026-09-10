@@ -69,6 +69,15 @@ constexpr size_t CANVAS_BYTES = (size_t)CANVAS_WIDTH * CANVAS_HEIGHT * 2;
 // The touch controller sits on its own SPI bus, separate from the display.
 // Driven by XPT2046_Touchscreen on VSPI; TOUCH_CS is deliberately NOT defined
 // as a build flag so TFT_eSPI does not also try to claim the chip.
+//
+// Resistive XPT2046 is the only controller supported. The capacitive CYD
+// variants (the "C" suffix boards, e.g. ESP32-2432S024C) fit a CST820 on I2C
+// using some of the same GPIOs, so driving them as SPI would be wrong. Set
+// HAS_RESISTIVE_TOUCH=0 in the board env there: the touch module compiles to
+// stubs and never touches those pins.
+#ifndef HAS_RESISTIVE_TOUCH
+#define HAS_RESISTIVE_TOUCH 1
+#endif
 constexpr uint8_t TOUCH_SPI_CLK = 25;
 constexpr uint8_t TOUCH_SPI_MISO = 39;  // input-only pin - correct for MISO
 constexpr uint8_t TOUCH_SPI_MOSI = 32;

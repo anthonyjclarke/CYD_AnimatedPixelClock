@@ -14,6 +14,8 @@
 
 #include "debug.h"
 
+#if HAS_RESISTIVE_TOUCH
+
 namespace {
 
 // Dedicated bus. The display already owns HSPI at 55MHz; the XPT2046 must stay
@@ -142,3 +144,18 @@ void touchSetCalibration(uint16_t xMin, uint16_t xMax, uint16_t yMin, uint16_t y
   prefs.end();
   DBG_INFO("Touch calibration saved x[%u..%u] y[%u..%u]", xMin, xMax, yMin, yMax);
 }
+
+#else  // !HAS_RESISTIVE_TOUCH - capacitive board, or touch not fitted.
+// Stubs only. Nothing here claims the touch GPIOs, which on a capacitive CYD
+// belong to a CST820 on I2C rather than to an SPI controller.
+
+void initTouch() { DBG_INFO("Touch: no resistive controller on this board"); }
+bool touchPressed() { return false; }
+bool touchTapped() { return false; }
+int16_t touchX() { return 0; }
+int16_t touchY() { return 0; }
+uint16_t touchRawX() { return 0; }
+uint16_t touchRawY() { return 0; }
+void touchSetCalibration(uint16_t, uint16_t, uint16_t, uint16_t) {}
+
+#endif  // HAS_RESISTIVE_TOUCH

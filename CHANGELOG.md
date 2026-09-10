@@ -16,8 +16,12 @@ verified on hardware. See **Port status** in `README.md`.
 
 ### Added
 
-- Two PlatformIO board environments, `esp32-cyd-28` (ILI9341 320×240) and
-  `esp32-cyd-40` (ST7796S 480×320), sharing one `[common]` block.
+- Three PlatformIO board environments — `esp32-cyd-24` and `esp32-cyd-28`
+  (ILI9341 320×240) and `esp32-cyd-40` (ST7796S 480×320) — sharing one
+  `[common]` block.
+- `HAS_RESISTIVE_TOUCH` build flag. The capacitive CYD revisions fit a CST820 on
+  I2C using some of the same GPIOs as the resistive XPT2046, so setting it to 0
+  compiles the touch module to stubs rather than driving those pins as SPI.
 - `src/display/cyd_display.h` / `.cpp` — Adafruit-GFX canvas backed by TFT_eSPI,
   replacing the upstream HUB75 DMA shim. Presents the identical call surface
   (`clearDisplay` / GFX draws / `display`), so clock styles need no display edits.
