@@ -169,7 +169,7 @@ void loadSettings() {
     settings.pongPaddleWidth = 20;   // Default: 20 pixels
     settings.pongHorizontalBounce = true; // Default: enabled
     settings.pongDigitShatter = true; // Default: shatter/reassemble enabled
-    settings.spaceCharacterType = 1; // Default: Ship (1 = Ship, 0 = Invader)
+    settings.spaceCharacterType = 0; // Default: Invader (0 = Invader, 1 = Ship)
     settings.spacePatrolSpeed = 5;   // Default: 0.5 (5 = 0.5 in tenths)
     settings.spaceAttackSpeed = 25;  // Default: 2.5 (25 = 2.5 in tenths)
     settings.spaceLaserSpeed = 40;   // Default: 4.0 (40 = 4.0 in tenths)
@@ -208,7 +208,7 @@ void loadSettings() {
     preferences.putUChar("pongBncStr", 3);    // Default: 0.3
     preferences.putUChar("pongBncDmp", 85);   // Default: 0.85
     preferences.putUChar("pongPadWid", 20);   // Default: 20
-    preferences.putUChar("spaceChar", 1);     // Default: Ship
+    preferences.putUChar("spaceChar", 0);     // Default: Invader
     preferences.putUChar("spacePatrol", 5);   // Default: 0.5
     preferences.putUChar("spaceAttack", 25);  // Default: 2.5
     preferences.putUChar("spaceLaser", 40);   // Default: 4.0
@@ -379,7 +379,7 @@ void loadSettings() {
   settings.pacmanBounceEnabled =
       preferences.getBool("pacmanBounce", true); // Default: true
   settings.spaceCharacterType =
-      preferences.getUChar("spaceChar", 1); // Default: Ship
+      preferences.getUChar("spaceChar", 0); // Default: Invader
   settings.spacePatrolSpeed =
       preferences.getUChar("spacePatrol", 5); // Default: 0.5
   settings.spaceAttackSpeed =

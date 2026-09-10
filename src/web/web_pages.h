@@ -240,11 +240,11 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                 <label class="field-label" for="spaceCharacterType">Character type</label>
                 <div class="select-wrap">
                   <select name="spaceCharacterType" id="spaceCharacterType">
-                    <option value="0" %SEL_SPACECHARACTERTYPE_0%>Space Invader</option>
-                    <option value="1" %SEL_SPACECHARACTERTYPE_1%>Space Ship (default)</option>
+                    <option value="0" %SEL_SPACECHARACTERTYPE_0%>Space Invader (default)</option>
+                    <option value="1" %SEL_SPACECHARACTERTYPE_1%>Space Ship</option>
                   </select>
                 </div>
-                  <p class="field-hint">The character that patrols and attacks the digits.</p>
+                  <p class="field-hint">The single character that patrols and shoots the digits when the minute changes. This style has one character, not a descending wave.</p>
               </div>
               <div class="grid-2">
                 <div class="field" style="margin-bottom:0">
