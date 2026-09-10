@@ -115,7 +115,8 @@ bool touchTapped() {
   lastX = mapAxis(p.x, calXMin, calXMax, SCREEN_WIDTH);
   lastY = mapAxis(p.y, calYMin, calYMax, SCREEN_HEIGHT);
 
-  DBG_VERBOSE("Tap raw(%u,%u) -> canvas(%d,%d) z=%d", lastRawX, lastRawY, lastX, lastY, p.z);
+  DBG_INFO("Touch: tap at canvas(%d,%d) raw(%u,%u) pressure %d", lastX, lastY,
+           lastRawX, lastRawY, p.z);
   return true;
 }
 

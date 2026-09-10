@@ -143,4 +143,15 @@ void resetTronAnimation();
 // ========== Weather Clock ==========
 void displayClockWithWeather();
 
+// ========== Style identity ==========
+// Human-readable name for a style id, for logs and diagnostics. Returns
+// "Unknown" for an id outside the table rather than indexing past it.
+const char *clockStyleName(uint8_t style);
+
+// Switch the active style and reset the animation state, logging what changed
+// and what asked for it. Every route that changes the style goes through here -
+// touch, the HTTP API and the Cycle All rotation - so a style change is never
+// silent and its cause is always in the log.
+void applyClockStyle(uint8_t style, const char *source);
+
 #endif // CLOCKS_H

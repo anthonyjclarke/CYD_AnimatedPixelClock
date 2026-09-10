@@ -6,6 +6,7 @@
 
 #include "clocks.h"
 #include "clock_globals.h"
+#include "debug.h"
 #include "../display/display.h"
 
 // Time-digit + colon color for the ACTIVE clock style. Each style keeps its own
@@ -252,6 +253,9 @@ void calculateTargetDigits(int current_hour, int current_min, bool current_is_pm
     target_digit_values[num_targets] = next_min % 10;
     num_targets++;
   }
+
+  DBG_VERBOSE("Minute change %02d:%02d: %d digit(s) to animate",
+              current_hour, current_min, num_targets);
 }
 
 // ========== Standard Clock Display ==========
@@ -389,5 +393,48 @@ void displayLargeClock() {
   // Draw no-WiFi icon if disconnected
   if (!wifiConnected) {
     drawNoWiFiIcon(0, 0);
+  }
+}
+
+// ========== Style identity ==========
+// Indexed by style id. 4 is a legacy alias for Space Invaders and 13 is retired,
+// so both are named rather than left as holes.
+static const char *const CLOCK_STYLE_NAMES[] = {
+    "Mario",        // 0
+    "Standard",     // 1
+    "Large",        // 2
+    "Space Invaders",  // 3
+    "Space Invaders",  // 4 (legacy alias)
+    "Pong",         // 5
+    "Pac-Man",      // 6
+    "Snake",        // 7
+    "Tetris",       // 8
+    "Cycle All",    // 9
+    "Asteroids",    // 10
+    "Dino Runner",  // 11
+    "Matrix Rain",  // 12
+    "(retired)",    // 13
+    "Weather",      // 14
+    "Bomberman",    // 15
+    "TRON",         // 16
+};
+
+const char *clockStyleName(uint8_t style) {
+  if (style >= sizeof(CLOCK_STYLE_NAMES) / sizeof(CLOCK_STYLE_NAMES[0])) {
+    return "Unknown";
+  }
+  return CLOCK_STYLE_NAMES[style];
+}
+
+void applyClockStyle(uint8_t style, const char *source) {
+  const uint8_t previous = settings.clockStyle;
+  settings.clockStyle = style;
+  resetClockAnimationState();
+  if (previous != style) {
+    DBG_INFO("Clock style: %s (%u) -> %s (%u) [%s]", clockStyleName(previous),
+             previous, clockStyleName(style), style, source);
+  } else {
+    DBG_INFO("Clock style: re-selected %s (%u) [%s]", clockStyleName(style),
+             style, source);
   }
 }

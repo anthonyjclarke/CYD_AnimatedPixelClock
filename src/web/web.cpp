@@ -246,8 +246,7 @@ void handleSetClockStyle() {
    server.send(400, "application/json", "{\"error\":\"id must be 0-16\"}");
    return;
  }
- settings.clockStyle = (uint8_t)id;
- resetClockAnimationState();
+ applyClockStyle((uint8_t)id, "http api");
  server.send(200, "application/json",
              "{\"success\":true,\"clockStyle\":" + String(id) + "}");
 }

@@ -40,6 +40,18 @@ static void applyBrightnessLevel(uint8_t brightness) {
     return;
   }
 
+  // With auto-brightness on this is evaluated every 500ms, and the LDR average
+  // drifts by a unit or two constantly - logging every change would bury the
+  // log. Only a step worth noticing (~3%) is INFO; the jitter is VERBOSE.
+  if (brightness != lastAppliedBrightness) {
+    const int delta = (int)brightness - (int)lastAppliedBrightness;
+    if (delta >= 8 || delta <= -8) {
+      DBG_INFO("Backlight %u -> %u (%u%%)", lastAppliedBrightness, brightness,
+               (unsigned)(brightness * 100 / 255));
+    } else {
+      DBG_VERBOSE("Backlight %u -> %u", lastAppliedBrightness, brightness);
+    }
+  }
   display.setBrightness8(brightness);
   lastAppliedBrightness = brightness;
 }

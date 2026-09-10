@@ -207,6 +207,46 @@ folder holds and what reviving it would involve.
 
 ---
 
+## Debug output
+
+Everything goes through the leveled macros in `include/debug.h` — there are no
+raw `Serial.print` calls. Set the level with `-DDEBUG_LEVEL=n` in the board env,
+or at runtime via `POST /api/debug` with `level=n`.
+
+| Level | Shows |
+|:--|:--|
+| 1 | Errors only |
+| 2 | + warnings — failed fetches, WiFi drops, rejected input |
+| 3 | + info — **the default.** State changes worth knowing about |
+| 4 | + verbose — per-tick detail: taps, backlight jitter, minute changes |
+
+At the default level a session looks like this:
+
+```
+[INFO] =======================================================
+[INFO] CYD_AnimatedPixelClock 1.1.0-dev
+[INFO] Board    ESP32 CYD 2.8" (ILI9341)
+[INFO] Canvas   160x120 @ x2 -> panel 320x240 (38400 bytes)
+[INFO] Sprites  x1, character band 20px, digits 24x32
+[INFO] Hardware touch XPT2046, LDR GPIO34, RGB LED GPIO4/16/17
+[INFO] Debug    level 3 (1=err 2=warn 3=info 4=verbose)
+[INFO] =======================================================
+[INFO] Touch: tap at canvas(88,54) raw(2210,1875) pressure 412
+[INFO] Clock style: Mario (0) -> Standard (1) [touch]
+[INFO] Cycle All: Standard (1) -> Tetris (8) for 30s
+[INFO] Backlight 255 -> 128 (50%)
+[INFO] Status: up 02:14:07 | style Tetris (8) | heap 184320 free, 171008 min |
+       rows 14/120 | NTP ok
+[INFO]         WiFi MyNetwork  192.168.1.42  -58 dBm
+```
+
+The status line prints once a minute. `heap ... min` is the low-water mark since
+boot, so a slow leak shows there while free heap still looks healthy, and
+`rows n/120` is how many canvas rows the last frame actually pushed — a running
+measure of whether the display's change detection is earning its keep.
+
+---
+
 ## Roadmap
 
 What to work on next, roughly in order of how much it would improve the thing on

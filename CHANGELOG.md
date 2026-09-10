@@ -25,6 +25,31 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
 
 ## [Unreleased] — 1.1.0-dev
 
+### Added
+
+- **A clock-style change is now logged from every route that can cause one.**
+  Only the touch path logged it; the HTTP API and the Cycle All rotation changed
+  the style silently, so a style that changed on its own left no trace. All
+  three go through `applyClockStyle()`, which names the style and what asked for
+  it. Cycle All logs separately because rotation deliberately does not write
+  `settings.clockStyle`.
+- `clockStyleName()` — logs and diagnostics say "Tetris (8)" rather than "8".
+- **Touch taps are visible at the default debug level.** They were `DBG_VERBOSE`,
+  so "is touch even working?" could not be answered without a rebuild. Now INFO,
+  with canvas coordinates, raw reading and pressure.
+- Once-a-minute status line: uptime, active style, free heap *and* the
+  since-boot low-water mark (a slow leak shows there first), canvas rows pushed
+  on the last frame, NTP state, WiFi SSID/IP/RSSI, and the LDR reading when
+  auto-brightness is driving the backlight.
+- Boot banner reporting version, board, canvas geometry and scale, sprite scale
+  and character band, which hardware is fitted, and the active debug level — so
+  a log excerpt identifies the build it came from.
+- Backlight changes are logged, throttled so only a step worth noticing (~3%)
+  is INFO. With auto-brightness the level is re-evaluated every 500 ms and the
+  LDR average drifts constantly; logging every change would bury everything else.
+- Minute-change animation trigger at verbose level, with the number of digits
+  about to animate.
+
 ### Fixed
 
 - **Factory reset erased nothing.** `handleReset()` still opened the upstream

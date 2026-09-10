@@ -143,13 +143,10 @@ static void advanceClockStyle() {
     if (candidate == 14 && !weatherConfigured()) {
       continue;  // Weather clock has no location yet
     }
-    settings.clockStyle = candidate;
+    applyClockStyle(candidate, "touch");
     break;
   }
-
-  resetClockAnimationState();
   saveSettings();
-  DBG_INFO("Touch: clock style -> %u", settings.clockStyle);
 }
 
 // Rotation uses elapsed time, independent of wall-clock adjustments.
@@ -175,7 +172,15 @@ void cycleClockScreens() {
   }
   static int lastStyle = -1;
   if (lastStyle != entries[index].style) {
-    resetClockAnimationState(); lastStyle = entries[index].style;
+    // Rotation changes the rendered style without touching settings.clockStyle,
+    // which stays 9 (Cycle All) - so log it directly rather than via
+    // applyClockStyle(), which would overwrite the user's chosen style.
+    DBG_INFO("Cycle All: %s (%d) -> %s (%d) for %us",
+             clockStyleName((uint8_t)lastStyle), lastStyle,
+             clockStyleName((uint8_t)entries[index].style), entries[index].style,
+             entries[index].seconds);
+    resetClockAnimationState();
+    lastStyle = entries[index].style;
   }
   switch (entries[index].style) {
     case 0: displayClockWithMario(); break;
@@ -218,11 +223,58 @@ static void renderActiveClock() {
   }
 }
 
+
+// Once-a-minute status line. Cheap, and it answers the questions that otherwise
+// need a rebuild to investigate: is the heap trending down, is WiFi weak, which
+// style is actually running, and is the display's row-change detection earning
+// its keep. getMinFreeHeap() is the low-water mark since boot, so a slow leak
+// shows as that number falling even while free heap looks healthy.
+static void logStatusHeartbeat() {
+  static uint32_t lastBeat = 0;
+  const uint32_t now = millis();
+  if (lastBeat != 0 && now - lastBeat < 60000) {
+    return;
+  }
+  lastBeat = now;
+
+  const uint32_t up = now / 1000;
+  DBG_INFO("Status: up %02u:%02u:%02u | style %s (%u) | heap %u free, %u min | "
+           "rows %u/%d | %s",
+           (unsigned)(up / 3600), (unsigned)((up / 60) % 60), (unsigned)(up % 60),
+           clockStyleName(settings.clockStyle), settings.clockStyle,
+           (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMinFreeHeap(),
+           display.lastRowsPushed(), SCREEN_HEIGHT,
+           ntpSynced ? "NTP ok" : "NTP pending");
+
+  if (WiFi.status() == WL_CONNECTED) {
+    DBG_INFO("        WiFi %s  %s  %d dBm", WiFi.SSID().c_str(),
+             WiFi.localIP().toString().c_str(), WiFi.RSSI());
+  } else {
+    DBG_WARN("        WiFi disconnected");
+  }
+
+  if (settings.ldrAutoBrightness && ldrAvailable()) {
+    DBG_INFO("        LDR raw %u -> backlight %u", ldrRaw(), ldrBrightness());
+  }
+}
+
 // ========== setup() ==========
 void setup() {
   Serial.begin(115200);
   delay(1000);
-  DBG_INFO("CYD_AnimatedPixelClock %s starting", FIRMWARE_VERSION);
+  DBG_INFO("=======================================================");
+  DBG_INFO("CYD_AnimatedPixelClock %s", FIRMWARE_VERSION);
+  DBG_INFO("Board    %s", BOARD_NAME);
+  DBG_INFO("Canvas   %dx%d @ x%d -> panel %dx%d (%u bytes)", CANVAS_WIDTH,
+           CANVAS_HEIGHT, DISPLAY_SCALE, PANEL_WIDTH, PANEL_HEIGHT,
+           (unsigned)CANVAS_BYTES);
+  DBG_INFO("Sprites  x%d, character band %dpx, digits %dx%d", SPRITE_SCALE,
+           CHAR_BAND, DIGIT_W, DIGIT_H);
+  DBG_INFO("Hardware touch %s, LDR %s, RGB LED %s",
+           HAS_RESISTIVE_TOUCH ? "XPT2046" : "none",
+           HAS_LDR ? "GPIO34" : "none", HAS_RGB_LED ? "GPIO4/16/17" : "none");
+  DBG_INFO("Debug    level %u (1=err 2=warn 3=info 4=verbose)", debugLevel);
+  DBG_INFO("=======================================================");
 
   // Load settings from flash
   loadSettings();
@@ -313,6 +365,8 @@ void loop() {
 
   // Check and apply scheduled brightness (time-based dimming)
   checkScheduledBrightness();
+
+  logStatusHeartbeat();
 
   // CYD peripherals
   updateLdr();
