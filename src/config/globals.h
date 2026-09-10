@@ -210,8 +210,8 @@ struct MarioFireball {
 // Layout metrics now derive from the canvas - see clocks/clock_layout.h.
 constexpr int TIME_Y = TIME_Y_BASE;
 // How far below Mario's origin his head sits; he bounces a digit by putting it
-// against the underside of the digit row.
-#define MARIO_HEAD_OFFSET 10
+// against the underside of the digit row. Scales with the magnified art.
+constexpr int MARIO_HEAD_OFFSET = 10 * SPRITE_SCALE;
 constexpr int DIGIT_BOTTOM = DIGIT_BOTTOM_Y;
 
 // Digit X positions for time display

@@ -12,10 +12,10 @@
  * Both boards render at DISPLAY_SCALE 2, so one logical pixel is the same
  * physical size on each. That splits the metrics in two:
  *
- *   Sprites (Mario, ghosts, invaders, the dino) are fixed pixel art. They keep
- *   their logical size, so they stay the same physical size on both panels and
- *   the 4.0" simply shows more room around them. Scaling them would mean
- *   redrawing every sprite.
+ *   Sprites (Mario, ghosts, invaders, the dino) are fixed pixel art, so they
+ *   cannot be redrawn larger. SPRITE_SCALE magnifies them at draw time instead
+ *   - see CydDisplay::setSpriteScale - which keeps them in proportion to the
+ *   digit row without touching a single pixel of the art.
  *
  *   Text scales with the canvas. Upstream's five digits filled 90 of 128 px,
  *   about 70% of the width. DIGIT_TEXT_SIZE keeps that proportion on both
@@ -57,9 +57,24 @@ constexpr int DIGIT_X_2 = TIME_X + 2 * DIGIT_W;  // colon
 constexpr int DIGIT_X_3 = TIME_X + 3 * DIGIT_W;
 constexpr int DIGIT_X_4 = TIME_X + 4 * DIGIT_W;
 
+// ---- Sprite magnification --------------------------------------------------
+// Character sprites are fixed 8x10-ish pixel art. Drawn 1:1 against a digit row
+// this much larger they read as tiny: upstream's Mario was 58% of the digit
+// height, at 1:1 here he is 31%. SPRITE_SCALE magnifies the art at draw time
+// (CydDisplay::setSpriteScale) without touching the art or its call sites.
+//
+// Half the text size keeps Mario at ~63% of the digit height on both boards,
+// which is the upstream proportion. Override per board env to taste; 1 restores
+// the original 1:1 art at its original physical size.
+#ifndef SPRITE_SCALE
+#define SPRITE_SCALE (DIGIT_TEXT_SIZE / 2)
+#endif
+
 // ---- Vertical bands --------------------------------------------------------
-// One sprite tall. Fixed, for the reason in the header comment.
-constexpr int CHAR_BAND = 14;
+// One sprite tall, so a character's head reaches the underside of the digit
+// row. The +4 preserves upstream's 4px of jump needed to touch a digit, at any
+// sprite scale.
+constexpr int CHAR_BAND = 10 * SPRITE_SCALE + 4;
 
 constexpr int TIME_Y_BASE = SCREEN_HEIGHT / 4;
 constexpr int DIGIT_BOTTOM_Y = TIME_Y_BASE + DIGIT_H;
@@ -77,6 +92,13 @@ constexpr int SCREEN_CENTER_Y = SCREEN_HEIGHT / 2;
 // Size-1 text metrics, for centring status strings.
 constexpr int TEXT1_W = 6;
 constexpr int TEXT1_H = 8;
+
+// Raising SPRITE_SCALE pushes the whole stack down, because the character band
+// grows with it. Fail the build rather than silently clipping the day row off
+// the bottom of the canvas: SPRITE_SCALE 3 fits 240x160 but not 160x120.
+static_assert(DAY_Y + TEXT1_H <= SCREEN_HEIGHT,
+              "SPRITE_SCALE is too large for this canvas - the day-of-week row "
+              "would fall off the bottom. Lower it in the board environment.");
 
 // Centre a size-1 string of `len` characters.
 constexpr int centerText1(int len) { return (SCREEN_WIDTH - len * TEXT1_W) / 2; }

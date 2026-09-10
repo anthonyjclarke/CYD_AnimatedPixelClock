@@ -363,7 +363,9 @@ void updateMarioAnimation(struct tm* timeinfo) {
 
 // ========== Draw Mario Sprite ==========
 void drawMario(int x, int y, bool facingRight, int frame, bool jumping) {
-  if (x < -10 || x > SCREEN_WIDTH + 10) return;
+  // Magnify the fixed pixel art about the sprite's base so it grows upward.
+  SpriteScale _mag(display, SPRITE_SCALE, x, y);
+  if (x < -10 * SPRITE_SCALE || x > SCREEN_WIDTH + 10 * SPRITE_SCALE) return;
 
   int sx = x - 4;
   int sy = y - 10;
@@ -509,6 +511,7 @@ static void updateCoins() {
 // Draw a spinning coin sprite
 static void drawCoin(MarioCoin& c) {
   if (!c.active) return;
+  SpriteScale _mag(display, SPRITE_SCALE, (int)c.x, (int)c.y);
   int cx = (int)c.x;
   int cy = (int)c.y;
   uint16_t col = SPRITE_COLOR(COL_COIN);
@@ -1118,6 +1121,8 @@ void updateMarioFireball() {
 // ========== Enemy Sprite Drawing ==========
 
 void drawGoomba(int x, int y, int frame, bool squashing) {
+  // Magnify the fixed pixel art about the sprite's base so it grows upward.
+  SpriteScale _mag(display, SPRITE_SCALE, x, y);
   int sx = x - 5;
   int sy = y - 10;
   uint16_t col = SPRITE_COLOR(COL_GOOMBA);
@@ -1161,6 +1166,8 @@ void drawGoomba(int x, int y, int frame, bool squashing) {
 }
 
 void drawSpiny(int x, int y, int frame, bool hit) {
+  // Magnify the fixed pixel art about the sprite's base so it grows upward.
+  SpriteScale _mag(display, SPRITE_SCALE, x, y);
   int sx = x - 5;
   int sy = y - 10;
   uint16_t col = SPRITE_COLOR(COL_SPINY);
@@ -1236,6 +1243,7 @@ void drawEnemy(MarioEnemy& e) {
 
 void drawMarioFireball(MarioFireball& fb) {
   if (!fb.active) return;
+  SpriteScale _mag(display, SPRITE_SCALE, (int)fb.x, (int)fb.y);
   int fx = (int)fb.x;
   int fy = (int)fb.y;
   uint16_t col = SPRITE_COLOR(COL_FIREBALL);
@@ -1247,6 +1255,8 @@ void drawMarioFireball(MarioFireball& fb) {
 
 // NES SMB1 Koopa Troopa (10px tall, turtle with shell)
 void drawKoopa(int x, int y, int frame, bool shellOnly, bool facingRight) {
+  // Magnify the fixed pixel art about the sprite's base so it grows upward.
+  SpriteScale _mag(display, SPRITE_SCALE, x, y);
   int sx = x - 5;
   int sy = y - 10;
   uint16_t col = SPRITE_COLOR(COL_KOOPA);
@@ -1302,6 +1312,8 @@ void drawKoopa(int x, int y, int frame, bool shellOnly, bool facingRight) {
 
 // Star power-up sprite (7x7, spinning)
 static void drawStarSprite(int x, int y, uint8_t frame) {
+  // Magnify the fixed pixel art about the sprite's base so it grows upward.
+  SpriteScale _mag(display, SPRITE_SCALE, x, y);
   int sx = x - 3;
   int sy = (int)y - 3;
   uint16_t col = SPRITE_COLOR(COL_STAR);
@@ -1329,6 +1341,8 @@ static void drawStarSprite(int x, int y, uint8_t frame) {
 
 // Mushroom power-up sprite (8x10, classic SMB1 Super Mushroom)
 static void drawMushroomSprite(int x, int y, uint8_t frame) {
+  // Magnify the fixed pixel art about the sprite's base so it grows upward.
+  SpriteScale _mag(display, SPRITE_SCALE, x, y);
   int sx = x - 4;
   int sy = y - 10;
   uint16_t col = SPRITE_COLOR(COL_MUSHROOM);
@@ -1351,6 +1365,8 @@ static void drawMushroomSprite(int x, int y, uint8_t frame) {
 
 // Big Mario sprite (used during star power and mushroom growth)
 static void drawBigMario(int x, int y, bool facingRight, int frame) {
+  // Magnify the fixed pixel art about the sprite's base so it grows upward.
+  SpriteScale _mag(display, SPRITE_SCALE, x, y);
   if (x < -12 || x > SCREEN_WIDTH + 12) return;
   int sx = x - 5;
   int sy = y - 13;  // Taller sprite (13px instead of 10)

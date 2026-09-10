@@ -11,8 +11,8 @@
 #include "clock_layout.h"
 
 // ========== Mario Clock Constants ==========
-// Starting position (off-screen left, one sprite clear of the edge)
-#define MARIO_START_X -15
+// Starting position: one magnified sprite clear of the left edge.
+#define MARIO_START_X (-8 * SPRITE_SCALE)
 
 // Walking speed (pixels per frame at MARIO_ANIM_SPEED)
 #define MARIO_WALK_SPEED 2.0f

@@ -96,6 +96,27 @@ verified on hardware. See **Port status** in `README.md`.
   to fill its panel exactly. Upstream drew 128×64; clock-style layouts are being
   reworked to the larger canvas rather than letterboxed.
 
+### Added — sprite magnification
+
+- `SPRITE_SCALE` build option. Character art is fixed 8×10-ish pixel work, so it
+  cannot simply be redrawn larger; against a digit row this much bigger it read
+  as tiny — Mario was 31% of the digit height where upstream had him at 58%.
+  The magnification happens at draw time in `CydDisplay`, which overrides the
+  three primitives every GFX shape funnels through and expands each drawn pixel
+  into a `scale × scale` block about an anchor. The art and its ~150 call sites
+  are untouched.
+- Defaults to half the digit text size — ×2 on a 160×120 canvas, ×3 on 240×160 —
+  putting Mario at 62% of digit height on both, close to the upstream
+  proportion. Set `-DSPRITE_SCALE=1` in a board env to restore the original 1:1
+  art.
+- `CHAR_BAND` and `MARIO_HEAD_OFFSET` derive from the scale, so a magnified
+  character still reaches the underside of the digit row to bounce it; the `+4`
+  in `CHAR_BAND` preserves upstream's 4 px of jump at any scale.
+- A `static_assert` rejects a scale too large for the canvas rather than
+  clipping the day-of-week row off the bottom — ×3 fits 240×160 but not 160×120.
+- Only Mario's sprites are magnified so far. The other styles' characters still
+  draw 1:1; the mechanism is in place for them.
+
 ### Fixed
 
 - **Colours rendered byte-swapped on the panel.** `GFXcanvas16` stores RGB565 in

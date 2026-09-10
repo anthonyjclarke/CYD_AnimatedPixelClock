@@ -121,3 +121,53 @@ void CydDisplay::setBrightness8(uint8_t brightness) {
 #endif
   DBG_VERBOSE("Backlight -> %u", brightness);
 }
+
+// ---- Sprite magnification ---------------------------------------------------
+// See cyd_display.h. The transform expands coordinates about an anchor and
+// turns each source pixel into a scale x scale block, so fixed pixel art draws
+// larger without any change to the art or to its hundreds of call sites.
+//
+// Every override below calls the GFXcanvas16 primitive explicitly rather than
+// its own class's, which is what stops the transform recursing.
+
+void CydDisplay::setSpriteScale(uint8_t scale, int16_t anchorX, int16_t anchorY) {
+  spriteScale = scale < 1 ? 1 : scale;
+  spriteAnchorX = anchorX;
+  spriteAnchorY = anchorY;
+}
+
+void CydDisplay::drawPixel(int16_t x, int16_t y, uint16_t color) {
+  if (spriteScale <= 1) {
+    GFXcanvas16::drawPixel(x, y, color);
+    return;
+  }
+  const int16_t tx = spriteAnchorX + (x - spriteAnchorX) * spriteScale;
+  const int16_t ty = spriteAnchorY + (y - spriteAnchorY) * spriteScale;
+  for (int16_t dy = 0; dy < spriteScale; dy++) {
+    GFXcanvas16::drawFastHLine(tx, ty + dy, spriteScale, color);
+  }
+}
+
+void CydDisplay::drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color) {
+  if (spriteScale <= 1) {
+    GFXcanvas16::drawFastHLine(x, y, w, color);
+    return;
+  }
+  const int16_t tx = spriteAnchorX + (x - spriteAnchorX) * spriteScale;
+  const int16_t ty = spriteAnchorY + (y - spriteAnchorY) * spriteScale;
+  for (int16_t dy = 0; dy < spriteScale; dy++) {
+    GFXcanvas16::drawFastHLine(tx, ty + dy, w * spriteScale, color);
+  }
+}
+
+void CydDisplay::drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color) {
+  if (spriteScale <= 1) {
+    GFXcanvas16::drawFastVLine(x, y, h, color);
+    return;
+  }
+  const int16_t tx = spriteAnchorX + (x - spriteAnchorX) * spriteScale;
+  const int16_t ty = spriteAnchorY + (y - spriteAnchorY) * spriteScale;
+  for (int16_t dx = 0; dx < spriteScale; dx++) {
+    GFXcanvas16::drawFastVLine(tx + dx, ty, h * spriteScale, color);
+  }
+}
