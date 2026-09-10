@@ -5,9 +5,8 @@ Port of **AnimatedPixelClock** (Keralots, MIT, upstream v2.3.0) from ESP32-S3 +
 
 `FIRMWARE_VERSION` in `include/config.h` is the only place the version lives.
 Releases are on `main`, tagged `vX.Y.Z`; `dev` carries a `-dev` suffix. Never
-release from `dev` or leave the suffix on a tagged commit — the version reaches
-the serial log, web UI, `/api/info` and mDNS, so a wrong one is wrong in five
-places at once.
+release from `dev` or leave the suffix on a tagged commit — that version reaches
+the serial log, web UI, `/api/info` and mDNS, so a wrong one is wrong five ways.
 
 ## Target hardware
 
