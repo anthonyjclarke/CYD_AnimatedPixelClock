@@ -96,6 +96,32 @@ verified on hardware. See **Port status** in `README.md`.
   to fill its panel exactly. Upstream drew 128×64; clock-style layouts are being
   reworked to the larger canvas rather than letterboxed.
 
+### Changed — Mario redrawn
+
+- **Mario is a faithful 12×16 sprite instead of an 8×10 abstraction.** Upstream's
+  figure had no face at all — the head was one solid red block and the torso one
+  solid blue block, with no hair, eye, moustache, shirt or buttons — which is why
+  it read as a red-and-blue blob rather than as Mario.
+- The art now lives in `src/clocks/mario_sprites.h` as rows of characters, one
+  character per pixel, so it can be read and edited in place rather than being
+  buried in ~150 `fillRect` calls. Four frames: stand, two walk, jump.
+  Left-facing mirrors at draw time rather than needing separate art.
+- Six new colour slots the old figure had nowhere to put: hair, overall buttons,
+  and four for the scenery below.
+- Upstream's Mario palette was tuned for a blockier figure and does not survive
+  a sprite with a face: skin `0xFDB8` rendered pink and shoes `0xA145` reddish.
+  Now peach and brown, the latter matching the hair as in the original.
+
+### Added — classic scenery
+
+- `marioScenery` setting (default on) fills the sky band above the clock with
+  World 1-1 furniture: two clouds drifting at different heights and speeds, a
+  stepped hill, a bush, and the ground strip Mario walks on. Drawn before the
+  digits and before Mario, so he passes in front of it as he does in the game.
+- Everything is sized in sprite pixels and magnified by `SPRITE_SCALE`, so the
+  scenery stays in proportion to Mario at any scale, and it skips the sky
+  elements entirely when a large scale has left too little sky to hold them.
+
 ### Added — sprite magnification
 
 - `SPRITE_SCALE` build option. Character art is fixed 8×10-ish pixel work, so it
@@ -116,8 +142,19 @@ verified on hardware. See **Port status** in `README.md`.
   clipping the day-of-week row off the bottom — ×3 fits 240×160 but not 160×120.
 - Only Mario's sprites are magnified so far. The other styles' characters still
   draw 1:1; the mechanism is in place for them.
+- The vertical layout is now built bottom-up — text rows, then the character
+  band, with whatever remains becoming sky. Sizing top-down let a larger
+  `SPRITE_SCALE` push the date and day rows off the bottom of the canvas.
 
 ### Fixed
+
+- **A `ColorSlot` could ship with no default.** `color_slots.h` declared
+  `SPRITE_COLOR_DEFAULTS` extern *with* an explicit `[COL_COUNT]` bound, which
+  completed the definition's type in `settings.cpp`, so `sizeof()` there always
+  reported `COL_COUNT` however many values were actually listed — making the
+  `static_assert` that guards them tautological. Six new slots were added with
+  no defaults and the build passed. The extern is now unbounded, the assert is
+  meaningful, and it was verified to fire by deleting an entry.
 
 - **Colours rendered byte-swapped on the panel.** `GFXcanvas16` stores RGB565 in
   host order, but TFT_eSPI defaults to `_swapBytes = false` and pushes an image

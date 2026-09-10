@@ -63,42 +63,55 @@ constexpr int DIGIT_X_4 = TIME_X + 4 * DIGIT_W;
 // height, at 1:1 here he is 31%. SPRITE_SCALE magnifies the art at draw time
 // (CydDisplay::setSpriteScale) without touching the art or its call sites.
 //
-// Half the text size keeps Mario at ~63% of the digit height on both boards,
-// which is the upstream proportion. Override per board env to taste; 1 restores
-// the original 1:1 art at its original physical size.
+// A third of the text size puts the 16px-tall Mario at ~50% of the digit height
+// at 160x120 and ~67% at 240x160. Upstream's cruder 10px figure was 42% of its
+// digit row, so this is a little larger as well as far more detailed.
+// Override per board env to taste.
 #ifndef SPRITE_SCALE
-#define SPRITE_SCALE (DIGIT_TEXT_SIZE / 2)
+#define SPRITE_SCALE (DIGIT_TEXT_SIZE / 3)
 #endif
 
+// Height of the character art, in sprite pixels. Mario is the tallest, and the
+// character band is sized from him so his head reaches the digits. Kept here
+// rather than included from mario_sprites.h so the layout does not depend on
+// one style's art; clock_mario.cpp static_asserts that the two agree.
+constexpr int SPRITE_ART_H = 16;
+
+// Size-1 text metrics. Declared here because the vertical bands below are
+// measured up from the text rows at the bottom of the canvas.
+constexpr int TEXT1_W = 6;
+constexpr int TEXT1_H = 8;
+
 // ---- Vertical bands --------------------------------------------------------
-// One sprite tall, so a character's head reaches the underside of the digit
-// row. The +4 preserves upstream's 4px of jump needed to touch a digit, at any
-// sprite scale.
-constexpr int CHAR_BAND = 10 * SPRITE_SCALE + 4;
+// Built from the bottom up, because the two fixed quantities are at the bottom:
+// the text rows need a known height, and the character band has to be exactly
+// one sprite tall so a character's head reaches the underside of the digit row.
+// Whatever is left over becomes the top band - sky, for the scenery. Sizing
+// top-down instead would let a larger SPRITE_SCALE push the text off the canvas.
+// +4 leaves a little air between a walking character's hat and the digits,
+// so he only closes it when he jumps.
+constexpr int CHAR_BAND = SPRITE_ART_H * SPRITE_SCALE + 4;
 
-constexpr int TIME_Y_BASE = SCREEN_HEIGHT / 4;
-constexpr int DIGIT_BOTTOM_Y = TIME_Y_BASE + DIGIT_H;
-constexpr int GROUND_Y = DIGIT_BOTTOM_Y + CHAR_BAND;
+constexpr int DAY_Y = SCREEN_HEIGHT - 2 - TEXT1_H;
+constexpr int DATE_Y = DAY_Y - 12;
+constexpr int GROUND_Y = DATE_Y - 5;
+constexpr int DIGIT_BOTTOM_Y = GROUND_Y - CHAR_BAND;
+constexpr int TIME_Y_BASE = DIGIT_BOTTOM_Y - DIGIT_H;
 
-// Text rows below the baseline. 8px and 14px are the size-1 glyph cell and a
-// comfortable line pitch; both stay legible because they are scaled x2 anyway.
-constexpr int DATE_Y = GROUND_Y + 8;
-constexpr int DAY_Y = DATE_Y + 14;
+// Sky above the digits, which is where the Mario scenery goes.
+constexpr int SKY_TOP = 0;
+constexpr int SKY_BOTTOM = TIME_Y_BASE;
 
 // ---- Common helpers --------------------------------------------------------
 constexpr int SCREEN_CENTER_X = SCREEN_WIDTH / 2;
 constexpr int SCREEN_CENTER_Y = SCREEN_HEIGHT / 2;
 
-// Size-1 text metrics, for centring status strings.
-constexpr int TEXT1_W = 6;
-constexpr int TEXT1_H = 8;
-
-// Raising SPRITE_SCALE pushes the whole stack down, because the character band
-// grows with it. Fail the build rather than silently clipping the day row off
-// the bottom of the canvas: SPRITE_SCALE 3 fits 240x160 but not 160x120.
-static_assert(DAY_Y + TEXT1_H <= SCREEN_HEIGHT,
-              "SPRITE_SCALE is too large for this canvas - the day-of-week row "
-              "would fall off the bottom. Lower it in the board environment.");
+// With a bottom-up stack, a larger SPRITE_SCALE eats the sky rather than
+// pushing text off the canvas - until it runs out and the digit row would go
+// negative. Fail the build there rather than drawing off the top edge.
+static_assert(TIME_Y_BASE >= 0,
+              "SPRITE_SCALE is too large for this canvas - the digit row would "
+              "start above the top edge. Lower it in the board environment.");
 
 // Centre a size-1 string of `len` characters.
 constexpr int centerText1(int len) { return (SCREEN_WIDTH - len * TEXT1_W) / 2; }

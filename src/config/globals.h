@@ -85,6 +85,7 @@ struct Settings {
   bool marioIdleEncounters;   // Enable idle enemy encounters (default: false)
   uint8_t marioEncounterFreq; // 0=Rare(25-35s), 1=Normal(15-25s), 2=Frequent(8-15s)
   uint8_t marioEncounterSpeed; // 0=Slow, 1=Normal, 2=Fast (default: 1)
+  bool marioScenery;          // Classic World 1-1 backdrop in the sky band
 
   // Space clock settings
   uint8_t spaceCharacterType;   // 0=Invader, 1=Ship
@@ -211,7 +212,7 @@ struct MarioFireball {
 constexpr int TIME_Y = TIME_Y_BASE;
 // How far below Mario's origin his head sits; he bounces a digit by putting it
 // against the underside of the digit row. Scales with the magnified art.
-constexpr int MARIO_HEAD_OFFSET = 10 * SPRITE_SCALE;
+constexpr int MARIO_HEAD_OFFSET = SPRITE_ART_H * SPRITE_SCALE;
 constexpr int DIGIT_BOTTOM = DIGIT_BOTTOM_Y;
 
 // Digit X positions for time display

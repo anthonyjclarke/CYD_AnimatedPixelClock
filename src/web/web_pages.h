@@ -198,6 +198,11 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                 <span class="check-text"><strong>Smooth animation</strong><span class="ct-hint">4-frame walk cycle for a smoother stride. Default off.</span></span>
               </label>
               <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="marioScenery" id="marioScenery" %CHK_MARIOSCENERY%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Classic scenery</strong><span class="ct-hint">Fill the sky above the clock with World 1-1 furniture: drifting clouds, a hill, a bush and the ground Mario walks on. Colours are in the Colors card. Default on.</span></span>
+              </label>
+              <label class="check-row standalone" style="margin-top:12px">
                 <input type="checkbox" name="marioIdleEncounters" id="marioIdleEncounters" %CHK_MARIOIDLEENCOUNTERS%>
                 <span class="check-box" aria-hidden="true"></span>
                 <span class="check-text"><strong>Idle encounters</strong><span class="ct-hint">Goombas and Spinies appear between minute changes for Mario to defeat. Default off.</span></span>

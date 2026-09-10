@@ -15,12 +15,14 @@ Preferences preferences;
 
 // Default sprite-color palette (RGB565), indexed by ColorSlot (color_slots.h).
 // Real definition for the header's extern. APPEND-ONLY: keep in sync with the enum.
+// Left unbounded so the static_assert below sees the real initialiser length.
+// Adding a ColorSlot without a default here is now a build error.
 const uint16_t SPRITE_COLOR_DEFAULTS[] = {
     /* COL_DIGITS         */ 0xFFFF,  // white
     /* COL_MARIO_HAT      */ 0xF800,  // red
     /* COL_MARIO_OVERALLS */ 0x001F,  // blue
-    /* COL_MARIO_SKIN     */ 0xFDB8,  // tan
-    /* COL_MARIO_SHOES    */ 0xA145,  // brown
+    /* COL_MARIO_SKIN     */ 0xFD91,  // peach (upstream's 0xFDB8 read pink)
+    /* COL_MARIO_SHOES    */ 0x8A05,  // brown, matching the hair as in the original
     /* COL_PACMAN         */ 0xFFE0,  // yellow
     /* COL_PELLET         */ 0xFFE0,  // yellow
     /* COL_SNAKE          */ 0x07E0,  // green
@@ -76,6 +78,12 @@ const uint16_t SPRITE_COLOR_DEFAULTS[] = {
     /* COL_SCOPE_GRID     */ 0x07E0,  // green
     /* COL_SCOPE_TRACE    */ 0xFFE0,  // yellow
     /* COL_SCOPE_PEAK     */ 0xF800,  // red
+    /* COL_MARIO_HAIR     */ 0x8A05,  // brown, as the original (matches shoes)
+    /* COL_MARIO_BUTTON   */ 0xFFE0,  // yellow overall buttons
+    /* COL_MARIO_SKY      */ 0xFFFF,  // white clouds
+    /* COL_MARIO_HILL     */ 0x0620,  // hill / bush green
+    /* COL_MARIO_GROUND   */ 0xC408,  // ground brick brown
+    /* COL_MARIO_BLOCK    */ 0xFD20,  // question-block orange
 };
 // Every ColorSlot must have a default here, else it silently defaults to black.
 static_assert(sizeof(SPRITE_COLOR_DEFAULTS) / sizeof(SPRITE_COLOR_DEFAULTS[0]) == COL_COUNT,
@@ -149,6 +157,7 @@ void loadSettings() {
     settings.ldrAutoBrightness = false;
     settings.ldrMinBrightness = LDR_MIN_BRIGHTNESS;
     settings.rgbLedEnabled = true;
+    settings.marioScenery = true;
     settings.tronBikeStyle = 0;
     settings.marioBounceHeight = 35; // Default: 3.5 (35 = 3.5 in tenths)
     settings.marioBounceSpeed = 6;   // Default: 0.6 (6 = 0.6 in tenths)
@@ -330,6 +339,7 @@ void loadSettings() {
   settings.ldrAutoBrightness = preferences.getBool("ldrAuto", false);
   settings.ldrMinBrightness = preferences.getUChar("ldrMin", LDR_MIN_BRIGHTNESS);
   settings.rgbLedEnabled = preferences.getBool("rgbLed", true);
+  settings.marioScenery = preferences.getBool("marioScene", true);
   settings.marioBounceHeight =
       preferences.getUChar("marioBnceH", 35); // Default: 3.5
   settings.marioBounceSpeed =
@@ -628,6 +638,7 @@ void saveSettings() {
   preferences.putBool("ldrAuto", settings.ldrAutoBrightness);
   preferences.putUChar("ldrMin", settings.ldrMinBrightness);
   preferences.putBool("rgbLed", settings.rgbLedEnabled);
+  preferences.putBool("marioScene", settings.marioScenery);
 
   preferences.end();
 

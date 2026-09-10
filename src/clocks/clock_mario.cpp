@@ -9,6 +9,7 @@
 #include "clocks.h"
 #include "clock_constants.h"
 #include "clock_globals.h"
+#include "mario_sprites.h"
 
 // Forward declarations for helper functions used by Mario clock
 void drawTimeWithBounce();
@@ -98,6 +99,100 @@ void drawTimeWithBounce() {
   display.setTextColor(DISPLAY_WHITE);  // reset so date/coin text stays white
 }
 
+
+// ========== Classic scenery ==========
+// The bottom-up layout leaves the whole sky band above the digits empty. These
+// fill it with the furniture of World 1-1 - drifting clouds, bushes on the
+// ground line, a distant hill - drawn before the digits and before Mario, so he
+// walks in front of them exactly as he does in the game.
+//
+// Everything is sized in sprite pixels and magnified by SPRITE_SCALE, so the
+// scenery stays in proportion to Mario at any scale.
+
+// Classic three-lobe cloud, ~12x5 sprite pixels, drawn about its centre.
+static void drawSceneryCloud(int cx, int cy) {
+  SpriteScale _mag(display, SPRITE_SCALE, cx, cy);
+  const uint16_t c = SPRITE_COLOR(COL_MARIO_SKY);
+  display.fillRect(cx - 5, cy - 1, 11, 3, c);
+  display.fillRect(cx - 3, cy - 3, 3, 2, c);
+  display.fillRect(cx + 1, cy - 4, 3, 3, c);
+  display.fillRect(cx - 6, cy, 1, 2, c);
+  display.fillRect(cx + 6, cy, 1, 2, c);
+}
+
+// Bush: the cloud silhouette in green, sitting on the ground line.
+static void drawSceneryBush(int cx, int baseY) {
+  SpriteScale _mag(display, SPRITE_SCALE, cx, baseY);
+  const uint16_t g = SPRITE_COLOR(COL_MARIO_HILL);
+  display.fillRect(cx - 6, baseY - 3, 13, 3, g);
+  display.fillRect(cx - 3, baseY - 5, 3, 2, g);
+  display.fillRect(cx + 1, baseY - 6, 3, 3, g);
+}
+
+// Distant hill: a stepped mound, the way the NES tile set draws it.
+static void drawSceneryHill(int cx, int baseY) {
+  SpriteScale _mag(display, SPRITE_SCALE, cx, baseY);
+  const uint16_t g = SPRITE_COLOR(COL_MARIO_HILL);
+  for (int i = 0; i < 6; i++) {
+    display.fillRect(cx - 8 + i, baseY - 1 - i, (8 - i) * 2, 1, g);
+  }
+}
+
+// Question block, 8x8 with the dimpled corners and a centred glyph.
+static void drawSceneryBlock(int x, int topY) {
+  SpriteScale _mag(display, SPRITE_SCALE, x, topY);
+  const uint16_t b = SPRITE_COLOR(COL_MARIO_BLOCK);
+  display.fillRect(x, topY, 8, 8, b);
+  display.drawRect(x, topY, 8, 8, DISPLAY_BLACK);
+  display.drawPixel(x + 1, topY + 1, DISPLAY_BLACK);
+  display.drawPixel(x + 6, topY + 1, DISPLAY_BLACK);
+  display.drawPixel(x + 1, topY + 6, DISPLAY_BLACK);
+  display.drawPixel(x + 6, topY + 6, DISPLAY_BLACK);
+  // "?" in black
+  display.fillRect(x + 3, topY + 2, 2, 1, DISPLAY_BLACK);
+  display.drawPixel(x + 5, topY + 3, DISPLAY_BLACK);
+  display.fillRect(x + 3, topY + 4, 2, 1, DISPLAY_BLACK);
+  display.drawPixel(x + 3, topY + 6, DISPLAY_BLACK);
+}
+
+// The ground Mario walks on: a solid line with the tile seams beneath it.
+static void drawSceneryGround() {
+  const uint16_t g = SPRITE_COLOR(COL_MARIO_GROUND);
+  display.drawFastHLine(0, GROUND_Y, SCREEN_WIDTH, g);
+  display.drawFastHLine(0, GROUND_Y + 1, SCREEN_WIDTH, g);
+  // Seams every 8 canvas pixels give the strip its blocky read.
+  for (int x = 0; x < SCREEN_WIDTH; x += 8) {
+    display.drawPixel(x, GROUND_Y + 2, g);
+  }
+}
+
+// Draw the whole scene. Call before the digits so they sit in front of it.
+static void drawMarioScenery() {
+  if (!settings.marioScenery) return;
+
+  drawSceneryGround();
+
+  // Nothing else fits if the sky band is too shallow - a large SPRITE_SCALE
+  // eats it - so bail out rather than drawing clouds over the digits.
+  if (SKY_BOTTOM < 12) return;
+
+  // Two clouds at different heights and speeds, wrapping across the canvas.
+  // Slow: a full crossing takes about a minute.
+  const uint32_t now = millis();
+  const int span = SCREEN_WIDTH + 24;
+  const int c1 = ((int)((now / 90) % span)) - 12;
+  const int c2 = ((int)((now / 150 + span / 2) % span)) - 12;
+  drawSceneryCloud(c1, 6 * SPRITE_SCALE);
+  if (SKY_BOTTOM >= 24) {
+    drawSceneryCloud(c2, 14 * SPRITE_SCALE);
+  }
+
+  // Static furniture on the ground line, kept clear of the centre so it does
+  // not crowd the digits' shadow.
+  drawSceneryHill(SCREEN_WIDTH / 6, GROUND_Y);
+  drawSceneryBush(SCREEN_WIDTH * 5 / 6, GROUND_Y);
+}
+
 // ========== Display Clock With Mario ==========
 void displayClockWithMario() {
   struct tm timeinfo;
@@ -114,6 +209,9 @@ void displayClockWithMario() {
   }
 
   maintainTimeOverride(&timeinfo, mario_state == MARIO_IDLE);
+
+  // Scenery first - the digits and Mario both draw over it.
+  drawMarioScenery();
 
   // Date at top
   display.setTextSize(1);
@@ -362,84 +460,65 @@ void updateMarioAnimation(struct tm* timeinfo) {
 }
 
 // ========== Draw Mario Sprite ==========
+static_assert(MARIO_H == SPRITE_ART_H,
+              "clock_layout.h sizes the character band from SPRITE_ART_H; it must "
+              "match the height of the Mario art in mario_sprites.h");
+
+// Map one art character to its configured colour. 'K' is the eye and moustache,
+// which are black in the original and deliberately not user-tunable.
+static uint16_t marioArtColor(char c) {
+  switch (c) {
+    case 'R': return SPRITE_COLOR(COL_MARIO_HAT);
+    case 'F': return SPRITE_COLOR(COL_MARIO_SKIN);
+    case 'H': return SPRITE_COLOR(COL_MARIO_HAIR);
+    case 'B': return SPRITE_COLOR(COL_MARIO_OVERALLS);
+    case 'S': return SPRITE_COLOR(COL_MARIO_SHOES);
+    case 'Y': return SPRITE_COLOR(COL_MARIO_BUTTON);
+    case 'K': return DISPLAY_BLACK;
+    default:  return DISPLAY_BLACK;
+  }
+}
+
+// Draw one frame of art. (x, y) is the sprite's base: horizontally centred,
+// with the feet resting on y, which is what lets a character stand on GROUND_Y
+// and grow upward when SPRITE_SCALE rises. Left-facing mirrors the columns
+// rather than needing a second set of art.
+static void drawMarioArt(const char *const *art, int x, int y, bool facingRight) {
+  const int left = x - MARIO_W / 2;
+  const int top = y - MARIO_H;
+  for (int row = 0; row < MARIO_H; row++) {
+    const char *line = art[row];
+    for (int col = 0; col < MARIO_W && line[col] != '\0'; col++) {
+      const char c = line[col];
+      if (c == '.') continue;  // transparent
+      const int px = facingRight ? (left + col) : (left + MARIO_W - 1 - col);
+      display.drawPixel(px, top + row, marioArtColor(c));
+    }
+  }
+}
+
 void drawMario(int x, int y, bool facingRight, int frame, bool jumping) {
   // Magnify the fixed pixel art about the sprite's base so it grows upward.
   SpriteScale _mag(display, SPRITE_SCALE, x, y);
-  if (x < -10 * SPRITE_SCALE || x > SCREEN_WIDTH + 10 * SPRITE_SCALE) return;
-
-  int sx = x - 4;
-  int sy = y - 10;
-
-  // Color map: hat block + brim = HAT, middle block = OVERALLS, arm pixels =
-  // SKIN, leg blocks (sy+6) = SHOES. (DISPLAY_BLACK details, if any, untouched.)
-  if (jumping) {
-    display.fillRect(sx + 2, sy, 4, 3, SPRITE_COLOR(COL_MARIO_HAT));
-    display.fillRect(sx + 2, sy + 3, 4, 3, SPRITE_COLOR(COL_MARIO_OVERALLS));
-    display.drawPixel(sx + 1, sy + 2, SPRITE_COLOR(COL_MARIO_SKIN));
-    display.drawPixel(sx + 6, sy + 2, SPRITE_COLOR(COL_MARIO_SKIN));
-    display.drawPixel(sx + 0, sy + 1, SPRITE_COLOR(COL_MARIO_SKIN));
-    display.drawPixel(sx + 7, sy + 1, SPRITE_COLOR(COL_MARIO_SKIN));
-    display.fillRect(sx + 2, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
-    display.fillRect(sx + 4, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
-  } else {
-    display.fillRect(sx + 2, sy, 4, 3, SPRITE_COLOR(COL_MARIO_HAT));
-    if (facingRight) {
-      display.drawPixel(sx + 6, sy + 1, SPRITE_COLOR(COL_MARIO_HAT));
-    } else {
-      display.drawPixel(sx + 1, sy + 1, SPRITE_COLOR(COL_MARIO_HAT));
-    }
-
-    display.fillRect(sx + 2, sy + 3, 4, 3, SPRITE_COLOR(COL_MARIO_OVERALLS));
-
-    if (settings.marioSmoothAnimation) {
-      // 4-frame mode: both arms animate in opposite phase
-      if (facingRight) {
-        display.drawPixel(sx + 1, sy + 4 - (frame % 2), SPRITE_COLOR(COL_MARIO_SKIN));  // Back arm
-        display.drawPixel(sx + 6, sy + 3 + (frame % 2), SPRITE_COLOR(COL_MARIO_SKIN));  // Front arm
-      } else {
-        display.drawPixel(sx + 6, sy + 4 - (frame % 2), SPRITE_COLOR(COL_MARIO_SKIN));  // Back arm
-        display.drawPixel(sx + 1, sy + 3 + (frame % 2), SPRITE_COLOR(COL_MARIO_SKIN));  // Front arm
-      }
-
-      // 4-frame walk cycle for smoother animation
-      switch (frame % 4) {
-        case 0:  // Legs together (neutral)
-          display.fillRect(sx + 2, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
-          display.fillRect(sx + 4, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
-          break;
-        case 1:  // Left leg forward
-          display.fillRect(sx + 1, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
-          display.fillRect(sx + 4, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
-          break;
-        case 2:  // Legs apart (full stride)
-          display.fillRect(sx + 1, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
-          display.fillRect(sx + 5, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
-          break;
-        case 3:  // Right leg forward
-          display.fillRect(sx + 2, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
-          display.fillRect(sx + 5, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
-          break;
-      }
-    } else {
-      // 2-frame mode (original): back arm static, front arm moves
-      if (facingRight) {
-        display.drawPixel(sx + 1, sy + 4, SPRITE_COLOR(COL_MARIO_SKIN));
-        display.drawPixel(sx + 6, sy + 3 + (frame % 2), SPRITE_COLOR(COL_MARIO_SKIN));
-      } else {
-        display.drawPixel(sx + 6, sy + 4, SPRITE_COLOR(COL_MARIO_SKIN));
-        display.drawPixel(sx + 1, sy + 3 + (frame % 2), SPRITE_COLOR(COL_MARIO_SKIN));
-      }
-
-      // 2-frame walk cycle (original)
-      if (frame == 0) {
-        display.fillRect(sx + 2, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
-        display.fillRect(sx + 4, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
-      } else {
-        display.fillRect(sx + 1, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
-        display.fillRect(sx + 5, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
-      }
-    }
+  if (x < -MARIO_W * SPRITE_SCALE || x > SCREEN_WIDTH + MARIO_W * SPRITE_SCALE) {
+    return;
   }
+
+  const char *const *art;
+  if (jumping) {
+    art = MARIO_JUMP;
+  } else if (settings.marioSmoothAnimation) {
+    // 4-frame cycle: pass through the neutral pose between strides.
+    switch (frame % 4) {
+      case 1:  art = MARIO_WALK_A; break;
+      case 3:  art = MARIO_WALK_B; break;
+      default: art = MARIO_STAND;  break;
+    }
+  } else {
+    // 2-frame cycle. Frame 0 is the neutral pose, so an idle Mario stands.
+    art = (frame % 2) ? MARIO_WALK_B : MARIO_STAND;
+  }
+  drawMarioArt(art, x, y, facingRight);
 }
 
 // ========== Idle Encounter Functions ==========

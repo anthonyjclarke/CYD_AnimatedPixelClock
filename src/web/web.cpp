@@ -405,10 +405,16 @@ static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
     {COL_STAT_TEXT, -2, "Metric text"},
     {COL_STAT_BAR, -2, "Bar fill"},
     {COL_STAT_BAR_BG, -2, "Bar outline"},
-    {COL_MARIO_HAT, 0, "Hat"},
+    {COL_MARIO_HAT, 0, "Cap and shirt"},
     {COL_MARIO_OVERALLS, 0, "Overalls"},
     {COL_MARIO_SKIN, 0, "Skin"},
+    {COL_MARIO_HAIR, 0, "Hair"},
     {COL_MARIO_SHOES, 0, "Shoes"},
+    {COL_MARIO_BUTTON, 0, "Overall buttons"},
+    {COL_MARIO_SKY, 0, "Scenery: clouds"},
+    {COL_MARIO_HILL, 0, "Scenery: hill and bush"},
+    {COL_MARIO_GROUND, 0, "Scenery: ground"},
+    {COL_MARIO_BLOCK, 0, "Scenery: question block"},
     {COL_PACMAN, 6, "Pac-Man"},
     {COL_PELLET, 6, "Pellets"},
     {COL_SNAKE, 7, "Snake"},
@@ -730,6 +736,7 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "CHK_ENABLESCHEDULEDOFF")) { out = String(settings.enableScheduledOff ? "checked" : ""); return true; }
   if (!strcmp(n, "DSP_ENABLESCHEDULEDOFF")) { out = String(settings.enableScheduledOff ? "block" : "none"); return true; }
   // --- CYD hardware (no upstream equivalent) ---
+  if (!strcmp(n, "CHK_MARIOSCENERY")) { out = String(settings.marioScenery ? "checked" : ""); return true; }
   if (!strcmp(n, "CHK_TOUCHENABLED")) { out = String(settings.touchEnabled ? "checked" : ""); return true; }
   if (!strcmp(n, "CHK_LDRAUTO")) { out = String(settings.ldrAutoBrightness ? "checked" : ""); return true; }
   if (!strcmp(n, "CHK_RGBLED")) { out = String(settings.rgbLedEnabled ? "checked" : ""); return true; }
@@ -1136,6 +1143,8 @@ void handleSave() {
  }
  weatherSettingsChanged(); // wake the fetch task for the new location
  }
+
+ settings.marioScenery = server.hasArg("marioScenery");
 
  // CYD hardware settings
  settings.touchEnabled = server.hasArg("touchEnabled");

@@ -97,11 +97,24 @@ enum ColorSlot {
   COL_SCOPE_GRID,      // oscilloscope graticule
   COL_SCOPE_TRACE,     // oscilloscope trace
   COL_SCOPE_PEAK,      // oscilloscope trace at full deflection
+  // Mario (style 0) - added with the faithful 12x16 NES sprite, which has
+  // detail the old 8x10 block figure had nowhere to put.
+  COL_MARIO_HAIR,      // hair and sideburn (brown in the original)
+  COL_MARIO_BUTTON,    // overall buttons
+  COL_MARIO_SKY,       // scenery: clouds
+  COL_MARIO_HILL,      // scenery: background hills and bushes
+  COL_MARIO_GROUND,    // scenery: ground strip
+  COL_MARIO_BLOCK,     // scenery: question blocks
   // ...append future slots here (before COL_COUNT)
   COL_COUNT
 };
 
 // Default palette (RGB565), indexed by ColorSlot. Real definition in settings.cpp.
-extern const uint16_t SPRITE_COLOR_DEFAULTS[COL_COUNT];
+//
+// Declared WITHOUT a bound on purpose. With [COL_COUNT] here the definition's
+// type is completed from this declaration, so sizeof() there reports COL_COUNT
+// however many values are actually listed - which made the static_assert in
+// settings.cpp tautological and let a slot ship with no default.
+extern const uint16_t SPRITE_COLOR_DEFAULTS[];
 
 #endif  // COLOR_SLOTS_H
