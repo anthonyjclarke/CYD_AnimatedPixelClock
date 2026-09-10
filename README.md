@@ -1,10 +1,10 @@
 # CYD_AnimatedPixelClock
 
 <!-- Update version badge when FIRMWARE_VERSION changes in include/config.h -->
-![Version](https://img.shields.io/badge/version-1.0.0--dev-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-ESP32-green.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-6.x-orange.svg)
-![Board](https://img.shields.io/badge/CYD-2.8%22%20%7C%204.0%22-yellow.svg)
+![Board](https://img.shields.io/badge/CYD-2.4%22%20%7C%202.8%22%20%7C%204.0%22-yellow.svg)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)
 ![Status](https://img.shields.io/badge/status-running%20on%20CYD%202.4%22-yellowgreen.svg)
 
@@ -39,10 +39,11 @@ larger canvas.
 
 ## Port status
 
-**Running on a CYD 2.4″.** The display path is confirmed on hardware: canvas,
-scaled blit, colour order and row-change detection all work. The clock layouts
-are still derived arithmetic that has been seen booting but not yet judged style
-by style, and the 2.8″ and 4.0″ targets remain build-only.
+**v1.0.0, running on a CYD 2.4″.** The display path is confirmed on hardware:
+canvas, scaled blit, colour order and row-change detection all work. The clock
+layouts are derived arithmetic that has been seen booting but not yet judged
+style by style, and the 2.8″ and 4.0″ targets remain build-only. See the
+[Roadmap](#roadmap) for what is unverified and what comes next.
 
 | Area                                       | Status                                        |
 |:-------------------------------------------|:----------------------------------------------|
@@ -56,25 +57,26 @@ by style, and the 2.8″ and 4.0″ targets remain build-only.
 | Clock-style layout rework, all 14 styles    | Complete — boots, not yet judged style by style |
 | Bring-up on 2.8″ / 4.0″                     | Not started                                   |
 
-Build sizes, both environments well inside a 1.792 MB OTA slot:
+Build sizes, all three well inside a 1.792 MB OTA slot:
 
 | Environment      | Flash                | Static RAM          |
 |:-----------------|:---------------------|:--------------------|
-| `esp32-cyd-28`   | 1,403,473 B (76.5%)  | 71,212 B (21.7%)    |
-| `esp32-cyd-40`   | 1,397,645 B (76.2%)  | 81,052 B (24.7%)    |
+| `esp32-cyd-24`   | 1,406,697 B (76.7%)  | 71,548 B (21.8%)    |
+| `esp32-cyd-28`   | 1,406,697 B (76.7%)  | 71,548 B (21.8%)    |
+| `esp32-cyd-40`   | 1,400,889 B (76.3%)  | 82,044 B (25.0%)    |
 
-The canvas is allocated from the heap on top of that: 37.5 KB on the 2.8″,
-75 KB on the 4.0″.
+The canvas is allocated from the heap on top of that: 37.5 KB on the 2.4″ and
+2.8″, 75 KB on the 4.0″.
 
 ---
 
 ## Hardware
 
-Both CYD variants are ESP32 boards with an integrated TFT and XPT2046 resistive
-touch controller. No external wiring is required.
+All three CYD variants are ESP32 boards with an integrated TFT and touch
+controller. No external wiring is required.
 
-| Spec       | CYD 2.8″ (`esp32-cyd-28`) | CYD 4.0″ (`esp32-cyd-40`) |
-|:-----------|:--------------------------|:--------------------------|
+| Spec       | CYD 2.4″ (`esp32-cyd-24`) | CYD 2.8″ (`esp32-cyd-28`) | CYD 4.0″ (`esp32-cyd-40`) |
+|:-----------|:--------------------------|:--------------------------|:--------------------------|
 | MCU        | ESP32 (ESP32-2432S028R)   | ESP32 (ESP32-2432S040)    |
 | Display    | ILI9341 · 320×240 · SPI   | ILI9341 · 320×240 · SPI   | ST7796S · 480×320 · SPI   |
 | Touch      | XPT2046 or CST820 †       | XPT2046 resistive         | XPT2046 resistive         |
@@ -162,16 +164,30 @@ need against a ~200 KB free heap.
 
 ---
 
+## Versioning
+
+`FIRMWARE_VERSION` in [`include/config.h`](include/config.h) is the single source
+of truth, surfaced at boot in the serial log, in the web UI header, in
+`/api/info`, in the mDNS TXT record and to Improv-Serial — so a device can always
+be asked what it is running.
+
+Releases live on `main` and are tagged `vX.Y.Z`. Work happens on `dev`, whose
+version carries a `-dev` suffix so a development build is never mistaken for the
+release it will become. See the top of [`CHANGELOG.md`](CHANGELOG.md) for the
+release procedure.
+
+---
+
 ## Building
 
 ```bash
-pio run -e esp32-cyd-28
+pio run -e esp32-cyd-24     # or -28 / -40
 ```
 
 Upload and monitor:
 
 ```bash
-pio run -e esp32-cyd-28 -t upload -t monitor
+pio run -e esp32-cyd-24 -t upload -t monitor
 ```
 
 WiFi is provisioned through the `PixelClock-Setup` captive portal or over USB
@@ -188,6 +204,36 @@ and custom `.pca` animation player are **not** built here. They are preserved
 under `archive/` along with the HUB75 hardware assets and the upstream ESP32-S3
 release binaries — see [`archive/README.md`](archive/README.md) for what each
 folder holds and what reviving it would involve.
+
+---
+
+## Roadmap
+
+What to work on next, roughly in order of how much it would improve the thing on
+a desk. Anything genuinely broken is listed as a bug and comes first.
+
+### Known bugs and unverified areas
+
+| Item | Detail |
+|:--|:--|
+| Enemy sprites are still upstream's crude art | Goombas, Spinies, Koopas, the mushroom and star are 8×8-ish blocks drawn at the old abstraction level. Beside the 12×16 Mario they look out of place, and enabling idle encounters is what makes them visible. Same fix as Mario: character arrays in `mario_sprites.h`. |
+| 2.4″ touch revision unconfirmed | Unknown whether this board is the resistive "R" or capacitive "C" revision. If tapping does nothing, it is a "C" board and needs `-DHAS_RESISTIVE_TOUCH=0`. |
+| Web UI never exercised in a browser | Three whole pages and ~300 lines of `PORTAL_JS` were removed during the port. All 172 placeholder tokens resolve, but that only proves a page compiles, not that it works. |
+| Eleven clock styles unjudged | Only Mario and Space have been looked at properly on hardware. The rest boot and their geometry is bounds-checked, but nothing beyond that. Bomberman's corridor spacing and TRON's approach waypoints are the loosest inferences and the most likely to need adjusting by eye. |
+| 2.8″ and 4.0″ never flashed | Both build, and the 4.0″ has a larger canvas, higher `SPRITE_SCALE` and different SPI timing that have only ever been exercised by the compiler. |
+| LDR thresholds are estimates | `LDR_RAW_BRIGHT` / `LDR_RAW_DARK` in `include/config.h` were guessed, not metered. Auto-brightness will track the room but the endpoints may be wrong. |
+| Touch calibration UI missing | Bounds are read from and written to NVS, but nothing captures them. Tap-to-change-style needs no accuracy, so this only matters if touch grows a real interface. |
+
+### Improvements worth making
+
+| Item | Detail |
+|:--|:--|
+| Magnify the other styles' characters | `SPRITE_SCALE` and the `CydDisplay` transform are in place; only Mario uses them. Pac-Man, the invader, the dino, Bomberman's hero and TRON's cycles still draw 1:1. Care needed — Pac-Man's *digits* are a pellet grid and must not scale. |
+| Scenery for other styles | The bottom-up layout leaves a sky band above the digits in every style, and only Mario fills it. |
+| Use the spare canvas in the text styles | Standard and Large still centre a clock with room to spare. |
+| Revive an archived subsystem | Ambient screensavers, the audio visualizer and the PC-metrics mode are intact under `archive/`. Each was written against the same Adafruit-GFX surface, so reviving one is a scope decision plus the same layout rework the clock styles had. |
+| Tetris small-clock mode | Now a 25-row well rather than 13. It is a much better showcase on this canvas than the 11-row default, but it is off by default because it changes behaviour rather than sizing. |
+| OTA release binaries | `main` is tagged but publishes no artefacts. Upstream had a release pipeline and a web flasher; both are archived. |
 
 ---
 

@@ -7,12 +7,32 @@ by Keralots (MIT) from ESP32-S3 + HUB75 RGB matrix hardware to the ESP32 Cheap
 Yellow Display. Versioning restarts at `1.0.0` for the port; upstream had reached
 `2.3.0` at the point this fork was taken.
 
+## Versioning
+
+`FIRMWARE_VERSION` in `include/config.h` is the single source of truth. It is
+surfaced at boot in the serial log, in the web UI header, in `/api/info`, in the
+mDNS TXT record and to Improv-Serial, so a device can always be asked what it is
+running. Semantic versioning: patch for fixes, minor for new behaviour, major
+for a breaking settings or API change.
+
+Releases live on `main` and are tagged `vX.Y.Z`. Work happens on `dev`, whose
+`FIRMWARE_VERSION` carries a `-dev` suffix so a development build is never
+mistaken for the release it will become. To cut a release: settle the
+`## [Unreleased]` section under its version and date, drop the `-dev` suffix,
+fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
+
 ---
 
-## [Unreleased] 10-09-2026
+## [1.0.0] 11-09-2026
 
-Complete port. **Both board targets build**; nothing has been flashed or
-verified on hardware. See **Port status** in `README.md`.
+First release. The complete port, running on a CYD 2.4″.
+
+Fourteen clock styles, the configuration web interface, OTA, WiFi provisioning,
+scheduled dimming and the CYD hardware integration (touch, LDR, RGB status LED)
+all build on three board targets. The display path — canvas, scaled blit, colour
+order and row-change detection — is confirmed on hardware; the 2.8″ and 4.0″
+targets are build-only, and the clock layouts beyond Mario and Space have been
+seen running but not judged style by style. See **Port status** in `README.md`.
 
 ### Added
 
