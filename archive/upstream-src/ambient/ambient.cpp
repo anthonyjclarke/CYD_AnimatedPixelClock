@@ -1,0 +1,69 @@
+/*
+ * AnimatedPixelClock - Ambient Screensaver Dispatcher
+ *
+ * Schedule check, style dispatch and the optional corner clock overlay.
+ * The effects themselves live in ambient_*.cpp.
+ */
+
+#include "ambient.h"
+
+#include "../clocks/clocks.h"
+#include "../config/config.h"
+#include "../display/display.h"
+
+extern bool httpForceAmbient;  // defined in main.cpp
+
+bool ambientActive() {
+  if (httpForceAmbient) return true;
+  if (!settings.ambientEnabled) return false;
+
+  struct tm timeinfo;
+  // Non-blocking: a timeout here would stall every loop iteration while NTP
+  // is still syncing.
+  if (!peekLocalTime(&timeinfo)) return false;
+
+  int h = timeinfo.tm_hour;
+  int s = settings.ambientStartHour;
+  int e = settings.ambientEndHour;
+  if (s == e) return false;  // empty window
+  // Wraps midnight the same way scheduled dimming does.
+  return (s < e) ? (h >= s && h < e) : (h >= s || h < e);
+}
+
+// Small HH:MM in the top-right corner, on a black backing so it stays
+// readable over bright effects like the fire.
+static void drawAmbientClock() {
+  struct tm timeinfo;
+  if (!peekLocalTime(&timeinfo)) return;
+
+  int displayHour, displayMin;
+  bool isPM;
+  formatTimeForDisplay(timeinfo.tm_hour, timeinfo.tm_min, displayHour,
+                       displayMin, isPM);
+  char timeStr[6];
+  sprintf(timeStr, "%02d%c%02d", displayHour, shouldShowColon() ? ':' : ' ',
+          displayMin);
+
+  display.fillRect(SCREEN_WIDTH - 34, 0, 34, 10, DISPLAY_BLACK);
+  display.setTextSize(1);
+  display.setTextColor(DISPLAY_WHITE);
+  display.setCursor(SCREEN_WIDTH - 31, 1);
+  display.print(timeStr);
+}
+
+void displayAmbient() {
+  switch (settings.ambientStyle) {
+    case 0: ambientInvadersFrame(); break;
+    case 1: ambientPacmanChaseFrame(); break;
+    // case 2 (old lava) removed; reserved for a future Mario effect. Stored
+    // 2 values are normalized to 0 on load/import (see settings.cpp).
+    case 3: ambientStarsFrame(); break;
+    case 4: ambientAquariumFrame(); break;
+    case 5: ambientThisIsFineFrame(); break;
+    case 6: ambientCustomFrame(); break;
+    default: ambientInvadersFrame(); break;
+  }
+  if (settings.ambientShowClock) {
+    drawAmbientClock();
+  }
+}

@@ -1,0 +1,3 @@
+# Archived upstream release payloads are binary; never convert line endings.
+*.bin -text
+*.exe -text

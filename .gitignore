@@ -1,0 +1,41 @@
+# ---- PlatformIO ----
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# ---- Build artefacts ----
+*.bin
+*.elf
+*.map
+*.hex
+
+# ---- Secrets (never committed - see include/secrets.h.example) ----
+include/secrets.h
+secrets.h
+
+# ---- VS Code (machine-local) ----
+.vscode/.browse.c_cpp.db*
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/ipch
+
+# ---- OS / editor cruft ----
+.DS_Store
+__pycache__/
+node_modules/
+nul
+
+# ---- Local working notes ----
+NEXT_SESSION.md
+hardware/
+
+# ---- Archive: kept on disk for provenance, but its compiled payloads are not
+#      committed. ~90MB of ESP32-S3 firmware images and Windows executables that
+#      cannot run on a CYD would otherwise live in this repository forever.
+#      archive/README.md documents what each folder holds.
+archive/upstream-release/release/
+archive/upstream-docs/docs/firmware/
+archive/pc-companion/PC-Companion-App-v4/win-companion/dist/
+*.exe
+
+# NOTE: CHANGELOG.md, CLAUDE.md and the rest of archive/ are tracked deliberately.

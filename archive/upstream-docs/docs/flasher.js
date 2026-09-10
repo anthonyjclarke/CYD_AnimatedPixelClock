@@ -1,0 +1,306 @@
+// AnimatedPixelClock Web Flasher - client logic.
+// Builds an ESP Web Tools manifest on the fly for the chosen board and keeps the
+// install button, specs and board photo in sync. Two boards, two firmware
+// images: the ESP32-S3 Super Mini (4MB) and the ESP32-S3-WROOM devkit (16MB),
+// both driving the 128x64 HUB75 matrix.
+
+const BOARDS = {
+  supermini: {
+    label: 'ESP32-S3-Zero / Super Mini (4MB, USB-C)',
+    chipFamily: 'ESP32-S3',
+    firmware: 'supermini',              // AnimatedPixelClock-supermini-<ver>-Full.bin (shared 4MB image)
+    board: 'ESP32-S3-Zero / Super Mini',
+    note: 'The compact 4MB build - the same image runs on the Waveshare ESP32-S3-Zero and an ESP32-S3 Super Mini. One USB-C charger powers the board and both panels. Native USB: if the serial port does not appear, hold BOOT while plugging in.',
+  },
+  wroom: {
+    label: 'ESP32-S3-WROOM devkit (16MB)',
+    chipFamily: 'ESP32-S3',
+    firmware: 'wroom',                  // AnimatedPixelClock-wroom-<ver>-Full.bin
+    board: 'ESP32-S3-WROOM-1 (N16R8)',
+    note: 'The full-size 16MB devkit has more storage for custom GIF animations. Follow the wiring guide for the panel power connections.',
+  },
+};
+
+const DEFAULT_BOARD = 'supermini';
+const DISPLAY = 'HUB75 · 128×64 RGB';
+
+let _version = null;
+let _currentManifestUrl = null;
+
+async function loadVersion() {
+  const r = await fetch('firmware/latest/VERSION', { cache: 'no-cache' });
+  if (!r.ok) throw new Error(`firmware/latest/VERSION returned HTTP ${r.status}`);
+  const text = (await r.text()).trim();
+  if (!text) throw new Error('VERSION file is empty');
+  return text;
+}
+
+function buildManifest(boardId, version) {
+  const board = BOARDS[boardId];
+  const binUrl = new URL(
+    `firmware/latest/AnimatedPixelClock-${board.firmware}-${version}-Full.bin`,
+    location.href,
+  ).href;
+  return {
+    name: 'AnimatedPixelClock',
+    version,
+    new_install_prompt_erase: true,
+    // After flashing, wait up to 15s for the device to boot, then probe for
+    // Improv-Serial. The firmware exposes Improv only on first boot (no stored
+    // WiFi credentials), so this kicks in for fresh installs and lets ESP Web
+    // Tools show its in-browser "Configure WiFi" dialog (section 02). The
+    // WiFiManager AP portal stays up in parallel as a fallback.
+    new_install_improv_wait_time: 15,
+    builds: [{
+      chipFamily: board.chipFamily,
+      parts: [{ path: binUrl, offset: 0 }],
+    }],
+  };
+}
+
+function manifestBlobUrl(boardId, version) {
+  if (_currentManifestUrl) {
+    URL.revokeObjectURL(_currentManifestUrl);
+    _currentManifestUrl = null;
+  }
+  const blob = new Blob([JSON.stringify(buildManifest(boardId, version))], { type: 'application/json' });
+  _currentManifestUrl = URL.createObjectURL(blob);
+  return _currentManifestUrl;
+}
+
+function populateBoardSelect() {
+  const sel = document.getElementById('board-select');
+  if (!sel) return;
+  for (const [id, info] of Object.entries(BOARDS)) {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = info.label;
+    sel.appendChild(opt);
+  }
+  sel.value = DEFAULT_BOARD;
+}
+
+function renderSpecs(boardId) {
+  const info = BOARDS[boardId];
+  document.getElementById('spec-chip').textContent = info.chipFamily;
+  const boardEl = document.getElementById('spec-board');
+  if (boardEl) boardEl.textContent = info.board;
+  document.getElementById('spec-display').textContent = DISPLAY;
+  const img = document.getElementById('board-img');
+  if (img) { img.src = `img/boards/${boardId}.jpg`; img.alt = info.board; }
+  const note = document.getElementById('board-note-text');
+  if (note) note.textContent = info.note;
+}
+
+function renderInstallButton(boardId, version) {
+  // ESP Web Tools caches the manifest on first render - recreate the element on
+  // every board switch so the new board's manifest is picked up.
+  const slot = document.getElementById('install-slot');
+  slot.innerHTML = '';
+  const btn = document.createElement('esp-web-install-button');
+  btn.setAttribute('manifest', manifestBlobUrl(boardId, version));
+
+  const fallback = document.createElement('span');
+  fallback.setAttribute('slot', 'unsupported');
+  fallback.className = 'unsupported';
+  fallback.textContent = 'Your browser does not support Web Serial. Use Chrome or Edge on desktop.';
+  btn.appendChild(fallback);
+
+  const notAllowed = document.createElement('span');
+  notAllowed.setAttribute('slot', 'not-allowed');
+  notAllowed.className = 'unsupported';
+  notAllowed.textContent = 'Web Serial requires a secure context (HTTPS). Open this page from https://.';
+  btn.appendChild(notAllowed);
+
+  slot.appendChild(btn);
+}
+
+function showStatus(message, kind) {
+  const line = document.getElementById('status-line');
+  line.textContent = message || '';
+  line.className = 'status-line' + (kind ? ' ' + kind : '');
+}
+
+function showVersion(version) {
+  document.getElementById('spec-version').textContent = version;
+  const rail = document.getElementById('rail-version');
+  if (rail) rail.textContent = version;
+  const releaseUrl = 'https://github.com/Keralots/AnimatedPixelClock/releases';
+  const download = document.getElementById('companion-download');
+  if (download) download.href = `${releaseUrl}/download/${encodeURIComponent(version)}/pc_stats_monitor_v4.exe`;
+  const notes = document.getElementById('release-downloads');
+  if (notes) notes.href = `${releaseUrl}/tag/${encodeURIComponent(version)}`;
+  const label = document.getElementById('companion-release');
+  if (label) label.textContent = `Included in ${version}`;
+}
+
+function showVersionError(err) {
+  document.getElementById('spec-version').textContent = 'unavailable';
+  const rail = document.getElementById('rail-version');
+  if (rail) rail.textContent = 'unavailable';
+  showStatus(
+    `Could not load firmware version (${err.message}). The site may be mid-deploy, try again in a minute.`,
+    'error',
+  );
+  document.getElementById('install-slot').innerHTML = '';
+}
+
+function checkBrowserSupport() {
+  if (!('serial' in navigator)) {
+    document.getElementById('browser-callout').classList.add('show');
+  }
+}
+
+async function init() {
+  checkBrowserSupport();
+  populateBoardSelect();
+  renderSpecs(DEFAULT_BOARD);
+  wireMonitor();
+
+  try {
+    _version = await loadVersion();
+  } catch (err) {
+    showVersionError(err);
+    return;
+  }
+
+  showVersion(_version);
+  renderInstallButton(DEFAULT_BOARD, _version);
+
+  const sel = document.getElementById('board-select');
+  if (sel) sel.addEventListener('change', (e) => {
+    const boardId = e.target.value;
+    renderSpecs(boardId);
+    renderInstallButton(boardId, _version);
+  });
+}
+
+// ────────── 04 serial monitor ──────────
+// Reads the device's serial stream at 115200 baud and appends decoded text to
+// <pre id="monitor-output">. Independent of the install button — only one
+// program can hold the port at a time, so don't click Install while connected.
+
+let _monitorPort = null;
+let _monitorReader = null;
+let _monitorReadLoopRunning = false;
+
+async function monitorConnect() {
+  if (_monitorPort) return;
+  let port;
+  try {
+    port = await navigator.serial.requestPort();
+  } catch (err) {
+    if (err && err.name === 'NotFoundError') return; // user cancelled picker
+    setMonitorStatus(`Could not pick a port: ${err.message}`, 'error');
+    return;
+  }
+  try {
+    await port.open({ baudRate: 115200 });
+  } catch (err) {
+    setMonitorStatus(`Could not open the port: ${err.message}. Close other monitors and try again.`, 'error');
+    return;
+  }
+  _monitorPort = port;
+  toggleMonitorButtons(true);
+  setMonitorStatus('Connected. Reading from device…', 'ok');
+  monitorReadLoop().catch((err) => setMonitorStatus(`Read error: ${err.message}`, 'error'));
+}
+
+async function monitorDisconnect() {
+  if (!_monitorPort) return;
+  setMonitorStatus('Disconnecting…');
+  try { if (_monitorReader) await _monitorReader.cancel(); } catch (_) {}
+  const startedAt = Date.now();
+  while (_monitorReadLoopRunning && Date.now() - startedAt < 1000) {
+    await new Promise((r) => setTimeout(r, 20));
+  }
+  try { await _monitorPort.close(); } catch (_) {}
+  _monitorPort = null;
+  _monitorReader = null;
+  toggleMonitorButtons(false);
+  setMonitorStatus('Disconnected.');
+}
+
+async function monitorReadLoop() {
+  _monitorReadLoopRunning = true;
+  const decoder = new TextDecoder();
+  try {
+    if (!_monitorPort || !_monitorPort.readable) return;
+    const reader = _monitorPort.readable.getReader();
+    _monitorReader = reader;
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (value && value.byteLength) appendMonitorOutput(decoder.decode(value, { stream: true }));
+      }
+    } finally {
+      try { reader.releaseLock(); } catch (_) {}
+      _monitorReader = null;
+    }
+  } finally {
+    _monitorReadLoopRunning = false;
+  }
+}
+
+function appendMonitorOutput(text) {
+  const out = document.getElementById('monitor-output');
+  const wasEmpty = out.textContent.length === 0;
+  const atBottom = out.scrollHeight - out.clientHeight - out.scrollTop < 4;
+  out.appendChild(document.createTextNode(text));
+  if (out.textContent.length > 200000) out.textContent = out.textContent.slice(-150000);
+  if (atBottom) out.scrollTop = out.scrollHeight;
+  if (wasEmpty) setMonitorBufferButtons(true);
+}
+
+function monitorExport() {
+  const out = document.getElementById('monitor-output');
+  const text = out.textContent;
+  if (!text) return;
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').replace('Z', '');
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `animatedpixelclock-serial-${ts}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function monitorClear() {
+  document.getElementById('monitor-output').textContent = '';
+  setMonitorBufferButtons(false);
+}
+
+function setMonitorBufferButtons(hasContent) {
+  document.getElementById('monitor-export').disabled = !hasContent;
+  document.getElementById('monitor-clear').disabled = !hasContent;
+}
+
+function setMonitorStatus(message, kind) {
+  const line = document.getElementById('monitor-status');
+  line.textContent = message || '';
+  line.className = 'status-line' + (kind ? ' ' + kind : '');
+}
+
+function toggleMonitorButtons(connected) {
+  document.getElementById('monitor-connect').disabled = connected;
+  document.getElementById('monitor-disconnect').disabled = !connected;
+}
+
+function wireMonitor() {
+  const connectBtn = document.getElementById('monitor-connect');
+  if (!('serial' in navigator)) {
+    connectBtn.disabled = true;
+    setMonitorStatus('Web Serial is unavailable in this browser — use desktop Chrome or Edge.', 'warn');
+    return;
+  }
+  connectBtn.addEventListener('click', monitorConnect);
+  document.getElementById('monitor-disconnect').addEventListener('click', monitorDisconnect);
+  document.getElementById('monitor-export').addEventListener('click', monitorExport);
+  document.getElementById('monitor-clear').addEventListener('click', monitorClear);
+}
+
+init();

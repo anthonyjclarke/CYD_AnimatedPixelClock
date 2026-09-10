@@ -1,0 +1,635 @@
+/*
+ * AnimatedPixelClock - Settings Module
+ *
+ * Load and save settings to ESP32 Preferences (flash storage).
+ */
+
+#include "settings.h"
+#include "../config/globals.h"
+#include "debug.h"
+#include "../timezones.h"
+#include <Preferences.h>
+
+
+Preferences preferences;
+
+// Default sprite-color palette (RGB565), indexed by ColorSlot (color_slots.h).
+// Real definition for the header's extern. APPEND-ONLY: keep in sync with the enum.
+const uint16_t SPRITE_COLOR_DEFAULTS[] = {
+    /* COL_DIGITS         */ 0xFFFF,  // white
+    /* COL_MARIO_HAT      */ 0xF800,  // red
+    /* COL_MARIO_OVERALLS */ 0x001F,  // blue
+    /* COL_MARIO_SKIN     */ 0xFDB8,  // tan
+    /* COL_MARIO_SHOES    */ 0xA145,  // brown
+    /* COL_PACMAN         */ 0xFFE0,  // yellow
+    /* COL_PELLET         */ 0xFFE0,  // yellow
+    /* COL_SNAKE          */ 0x07E0,  // green
+    /* COL_INVADER        */ 0x07E0,  // green
+    /* COL_LASER          */ 0xF800,  // red
+    /* COL_SNAKE_FOOD     */ 0xF800,  // red
+    /* COL_TET_I          */ 0x07FF,  // cyan
+    /* COL_TET_O          */ 0xFFE0,  // yellow
+    /* COL_TET_T          */ 0x8010,  // purple
+    /* COL_TET_S          */ 0x07E0,  // green
+    /* COL_TET_Z          */ 0xF800,  // red
+    /* COL_TET_J          */ 0x001F,  // blue
+    /* COL_TET_L          */ 0xFC00,  // orange
+    /* COL_DINO           */ 0xFFFF,  // white
+    /* COL_DINO_CACTUS    */ 0x07E0,  // green
+    /* COL_DINO_PTERO     */ 0xFFFF,  // white
+    /* COL_DINO_GROUND    */ 0xFFFF,  // white
+    /* COL_DINO_CLOUD     */ 0xFFFF,  // white
+    /* COL_AST_SHIP       */ 0x07FF,  // cyan
+    /* COL_AST_ROCK       */ 0xA145,  // tan
+    /* COL_PONG_BALL      */ 0xFFFF,  // white
+    /* COL_PONG_PADDLE    */ 0x07FF,  // cyan
+    /* COL_GOOMBA         */ 0xA145,  // brown
+    /* COL_SPINY          */ 0xFC00,  // orange
+    /* COL_KOOPA          */ 0x07E0,  // green
+    /* COL_COIN           */ 0xFFE0,  // yellow
+    /* COL_STAR           */ 0xFFE0,  // yellow
+    /* COL_MUSHROOM       */ 0xF800,  // red
+    /* COL_FIREBALL       */ 0xFC00,  // orange
+    /* COL_STAT_TEXT      */ 0xFFFF,  // white
+    /* COL_STAT_BAR       */ 0xFFFF,  // white
+    /* COL_STAT_BAR_BG    */ 0xFFFF,  // white
+    /* COL_MATRIX_RAIN    */ 0x07E8,  // matrix green (#00ff41)
+    /* COL_MATRIX_HEAD    */ 0xDFFB,  // white-green head (#d8ffd8)
+    /* COL_MC_MISSILE     */ 0xF800,  // red
+    /* COL_MC_COUNTER     */ 0x07FF,  // cyan
+    /* COL_MC_EXPLOSION   */ 0xFFE0,  // yellow
+    /* COL_MC_CITY        */ 0x34DF,  // blue (#3399ff)
+    /* COL_MC_GROUND      */ 0xBC40,  // ochre (#bf8800)
+    /* COL_DIGITS_S0..S14 */ 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+                             0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+                             0xFFFF,  // per-style digits, white
+    /* COL_WEATHER_ICON   */ 0xFFE0,  // yellow (sun / cloud body)
+    /* COL_WEATHER_ACCENT */ 0x551F,  // light blue (rain / snow / effects)
+    /* COL_WEATHER_TEMP   */ 0xFFFF,  // white
+    /* COL_VIZ_LOW        */ 0x07E0,  // green
+    /* COL_VIZ_MID        */ 0xFFE0,  // yellow
+    /* COL_VIZ_PEAK       */ 0xF800,  // red
+    /* COL_DIGITS_S15     */ 0xFCCC,  // warm brick
+    /* COL_DIGITS_S16     */ 0x07FF,  // neon cyan
+    /* COL_TRON_BLUE      */ 0x05FF,  // blue light cycle
+    /* COL_TRON_ORANGE    */ 0xFC60,  // orange light cycle
+    /* COL_SCOPE_GRID     */ 0x07E0,  // green
+    /* COL_SCOPE_TRACE    */ 0xFFE0,  // yellow
+    /* COL_SCOPE_PEAK     */ 0xF800,  // red
+};
+// Every ColorSlot must have a default here, else it silently defaults to black.
+static_assert(sizeof(SPRITE_COLOR_DEFAULTS) / sizeof(SPRITE_COLOR_DEFAULTS[0]) == COL_COUNT,
+              "every ColorSlot needs a default in SPRITE_COLOR_DEFAULTS");
+// digitColor() relies on the 15 per-style digit slots being contiguous, in order.
+static_assert(COL_DIGITS_S14 - COL_DIGITS_S0 == 14,
+              "COL_DIGITS_S0..S14 must be 15 contiguous slots in ascending order");
+
+// Zero saved brightness would leave the panel permanently dark with no local
+// control to recover it (runtime off goes through /api/display, not settings),
+// so persisted brightness values are clamped to a minimum of 1.
+// NVS namespace. Renamed from upstream's "pcmonitor": this port has no PC
+// metrics mode, so that name described nothing. No migration is needed - the
+// CYD build has no existing installs to carry settings over from.
+static constexpr const char *NVS_NAMESPACE = "pixelclock";
+
+uint8_t sanitizeBrightnessValue(uint8_t value) {
+  return value == 0 ? 1 : value;
+}
+
+bool isZeroBrightnessAllowed() {
+  return false;
+}
+
+void sanitizeBrightnessSettings() {
+  settings.displayBrightness = sanitizeBrightnessValue(settings.displayBrightness);
+  settings.dimBrightness = sanitizeBrightnessValue(settings.dimBrightness);
+}
+
+#include "../clocks/cycle_config.h"
+
+void loadSettings() {
+  strcpy(settings.cycleConfig, CYCLE_DEFAULT);
+  // Try to open preferences namespace (create if doesn't exist)
+  if (!preferences.begin(NVS_NAMESPACE,
+                         false)) { // Read-write mode to create if needed
+    DBG_WARN("WARNING: Failed to open preferences, using defaults");
+    // Initialize with defaults
+    settings.clockStyle = 0;
+    settings.gmtOffset = 60;  // GMT+1 (Central European)
+    settings.daylightSaving = true;
+    strcpy(settings.timezoneString, "CET-1CEST,M3.5.0/02:00,M10.5.0/03:00"); // Default: Central European
+    settings.use24Hour = true;
+    settings.dateFormat = 0;
+    settings.clockPosition = 0; // Center by default
+    settings.clockOffset = 0;   // No offset by default
+    strcpy(settings.deviceName, "pixelclock");
+    settings.colonBlinkMode = 1;         // Default: Blink
+    settings.colonBlinkRate = 10; // Default: 1.0 Hz (10 = 1.0Hz in tenths)
+    settings.displayBrightness = sanitizeBrightnessValue(255);
+    settings.enableScheduledDimming = false;
+    settings.dimStartHour = 22;
+    settings.dimStartMinute = 0;
+    settings.dimEndHour = 7;
+    settings.dimEndMinute = 0;
+    settings.dimBrightness = sanitizeBrightnessValue(50);
+    settings.enableScheduledOff = false;
+    settings.offStartHour = 0;
+    settings.offStartMinute = 0;
+    settings.offEndHour = 7;
+    settings.offEndMinute = 0;
+    settings.notifyEnabled = true;
+    settings.notifyPosition = 0;
+    settings.weatherEnabled = false;
+    settings.weatherLat = 0;
+    settings.weatherLon = 0;
+    settings.weatherUseFahrenheit = false;
+    settings.weatherApiKey[0] = '\0';
+    // CYD hardware defaults
+    settings.touchEnabled = true;
+    settings.ldrAutoBrightness = false;
+    settings.ldrMinBrightness = LDR_MIN_BRIGHTNESS;
+    settings.rgbLedEnabled = true;
+    settings.tronBikeStyle = 0;
+    settings.marioBounceHeight = 35; // Default: 3.5 (35 = 3.5 in tenths)
+    settings.marioBounceSpeed = 6;   // Default: 0.6 (6 = 0.6 in tenths)
+    settings.marioSmoothAnimation = false; // Default: 2-frame animation
+    settings.marioWalkSpeed = 20;    // Default: 2.0 (20 = 2.0 in tenths)
+    settings.pongBallSpeed = 18;     // Default: 18 (1.125 px/frame)
+    settings.pongBounceStrength = 3; // Default: 0.3 (3 = 0.3 in tenths)
+    settings.pongBounceDamping = 85; // Default: 0.85 (85 = 0.85 in hundredths)
+    settings.pongPaddleWidth = 20;   // Default: 20 pixels
+    settings.pongHorizontalBounce = true; // Default: enabled
+    settings.pongDigitShatter = true; // Default: shatter/reassemble enabled
+    settings.spaceCharacterType = 1; // Default: Ship (1 = Ship, 0 = Invader)
+    settings.spacePatrolSpeed = 5;   // Default: 0.5 (5 = 0.5 in tenths)
+    settings.spaceAttackSpeed = 25;  // Default: 2.5 (25 = 2.5 in tenths)
+    settings.spaceLaserSpeed = 40;   // Default: 4.0 (40 = 4.0 in tenths)
+    settings.spaceExplosionGravity = 5; // Default: 0.5 (5 = 0.5 in tenths)
+    DBG_INFO("Settings initialized with defaults");
+    return;
+  }
+
+  // Check if this is a fresh namespace (no settings saved yet)
+  if (!preferences.isKey("clockStyle")) {
+    DBG_INFO("Fresh preferences namespace detected, initializing with defaults");
+    // Write defaults to NVS
+    preferences.putInt("clockStyle", 0);
+    preferences.putInt("gmtOffset", 60); // GMT+1 (Central European)
+    preferences.putBool("dst", true);
+    preferences.putString("tz", "CET-1CEST,M3.5.0/02:00,M10.5.0/03:00"); // Default: Central European
+    preferences.putBool("use24Hour", true);
+    preferences.putInt("dateFormat", 0);
+    preferences.putInt("clockPos", 0);    // Center
+    preferences.putInt("clockOffset", 0); // No offset
+    preferences.putUChar("colonBlink", 1);    // Default: Blink
+    preferences.putUChar("colonRate", 10);    // Default: 1.0 Hz
+    preferences.putUChar("brightness", sanitizeBrightnessValue(255));
+    preferences.putBool("schedDim", false);
+    preferences.putUChar("dimStart", 22);
+    preferences.putUChar("dimEnd", 7);
+    preferences.putUChar("dimBright", sanitizeBrightnessValue(50));
+    preferences.putUChar("marioBnceH", 35);   // Default: 3.5
+    preferences.putUChar("marioBnceS", 6);    // Default: 0.6
+    preferences.putBool("marioSmooth", false); // Default: 2-frame animation
+    preferences.putUChar("marioWalkSpd", 20); // Default: 2.0
+    preferences.putBool("marioEnctr", false); // Default: no idle encounters
+    preferences.putUChar("marioEncFrq", 1);   // Default: Normal frequency
+    preferences.putUChar("marioEncSpd", 1);   // Default: Normal speed
+    preferences.putUChar("pongBallSpd", 18);  // Default: 18
+    preferences.putUChar("pongBncStr", 3);    // Default: 0.3
+    preferences.putUChar("pongBncDmp", 85);   // Default: 0.85
+    preferences.putUChar("pongPadWid", 20);   // Default: 20
+    preferences.putUChar("spaceChar", 1);     // Default: Ship
+    preferences.putUChar("spacePatrol", 5);   // Default: 0.5
+    preferences.putUChar("spaceAttack", 25);  // Default: 2.5
+    preferences.putUChar("spaceLaser", 40);   // Default: 4.0
+    preferences.putUChar("spaceExpGrv", 5);   // Default: 0.5
+
+    DBG_INFO("Default settings written to NVS");
+  }
+
+  String cycle = preferences.getString("cycleConfig", CYCLE_DEFAULT);
+  CycleEntry checked[CYCLE_COUNT];
+  if (cycle.length() < sizeof(settings.cycleConfig) && parseCycleConfig(cycle.c_str(), checked))
+    strcpy(settings.cycleConfig, cycle.c_str());
+  settings.clockStyle = preferences.getInt("clockStyle", 0); // Default: Mario
+  settings.tronBikeStyle = preferences.getUChar("tronBikeStyle", 0);
+  if (settings.tronBikeStyle > 1) settings.tronBikeStyle = 0;
+  if (settings.clockStyle == 13) settings.clockStyle = 1;    // retired Missile Command -> Standard
+
+  // gmtOffset migration: convert old hours to new minutes format
+  int loadedOffset = preferences.getInt("gmtOffset", 60);
+  if (loadedOffset >= -12 && loadedOffset <= 14 && loadedOffset != 0) {
+    // Old format (hours): convert to minutes
+    settings.gmtOffset = loadedOffset * 60;
+    preferences.putInt("gmtOffset", settings.gmtOffset); // Save new format
+  } else {
+    settings.gmtOffset = loadedOffset; // Already in minutes
+  }
+
+  settings.daylightSaving = preferences.getBool("dst", true);  // Default: true
+
+  // Timezone migration: migrate from old gmtOffset + dst to new timezoneString
+  if (preferences.isKey("tz")) {
+    // New format exists, load it
+    String loadedTz = preferences.getString("tz", "");
+    if (loadedTz.length() > 0) {
+      strncpy(settings.timezoneString, loadedTz.c_str(), 63);
+      settings.timezoneString[63] = '\0';
+      settings.timezoneIndex = preferences.getUChar("tzIdx", 255);
+
+      // Auto-heal: if the user picked a region from the dropdown (a valid
+      // index was stored), re-derive the POSIX string from the current
+      // database. This lets corrected DST/offset rules (e.g. Turkey now
+      // UTC+3) take effect after a firmware update without the user having
+      // to re-select. Migrated or imported configs use index 255 and keep
+      // their stored string untouched.
+      if (settings.timezoneIndex < 255) {
+        size_t tzCount = 0;
+        const TimezoneRegion* regions = getSupportedTimezones(&tzCount);
+        if (settings.timezoneIndex < tzCount) {
+          strncpy(settings.timezoneString, regions[settings.timezoneIndex].posixString, 63);
+          settings.timezoneString[63] = '\0';
+          settings.gmtOffset = regions[settings.timezoneIndex].gmtOffsetMinutes;
+        }
+      }
+
+      DBG_INFO("Loaded timezone string: %s (index: %d)", settings.timezoneString, settings.timezoneIndex);
+    } else {
+      // Key exists but empty, set default
+      strcpy(settings.timezoneString, "CET-1CEST,M3.5.0/02:00,M10.5.0/03:00");
+    }
+  } else {
+    // Old format: migrate to default timezone based on gmtOffset
+    const char* defaultTz = getDefaultTimezoneForOffset(settings.gmtOffset);
+    if (defaultTz != nullptr) {
+      strncpy(settings.timezoneString, defaultTz, 63);
+      settings.timezoneString[63] = '\0';
+      // Save new format
+      preferences.putString("tz", settings.timezoneString);
+      DBG_INFO("Migrated gmtOffset %d + DST %d to timezone: %s",
+                    settings.gmtOffset, settings.daylightSaving, settings.timezoneString);
+    } else {
+      // No automatic mapping available, default to UTC
+      strcpy(settings.timezoneString, "UTC0");
+      DBG_INFO("Warning: No automatic timezone for gmtOffset %d, defaulting to UTC",
+                    settings.gmtOffset);
+    }
+  }
+
+  settings.use24Hour = preferences.getBool("use24Hour", true); // Default: 24h
+  settings.dateFormat =
+      preferences.getInt("dateFormat", 0); // Default: DD/MM/YYYY
+  settings.clockPosition = preferences.getInt("clockPos", 0); // Default: Center
+  settings.clockOffset =
+      preferences.getInt("clockOffset", 0); // Default: No offset
+  settings.colonBlinkMode =
+      preferences.getUChar("colonBlink", 1); // Default: Blink
+  settings.colonBlinkRate =
+      preferences.getUChar("colonRate", 10); // Default: 1.0 Hz
+  settings.displayBrightness =
+      preferences.getUChar("brightness", 255); // Default: 255 (max)
+  settings.enableScheduledDimming =
+      preferences.getBool("schedDim", false); // Default: Disabled
+  settings.dimStartHour =
+      preferences.getUChar("dimStart", 22); // Default: 10 PM
+  settings.dimStartMinute =
+      preferences.getUChar("dimStartMin", 0);
+  settings.dimEndHour =
+      preferences.getUChar("dimEnd", 7); // Default: 7 AM
+  settings.dimEndMinute =
+      preferences.getUChar("dimEndMin", 0);
+  settings.dimBrightness =
+      preferences.getUChar("dimBright", 50); // Default: ~20% (50/255)
+  settings.enableScheduledOff =
+      preferences.getBool("schedOff", false); // Default: Disabled
+  settings.offStartHour =
+      preferences.getUChar("offStart", 0); // Default: midnight
+  settings.offStartMinute =
+      preferences.getUChar("offStartMin", 0);
+  settings.offEndHour =
+      preferences.getUChar("offEnd", 7); // Default: 7 AM
+  settings.offEndMinute =
+      preferences.getUChar("offEndMin", 0);
+  settings.notifyEnabled =
+      preferences.getBool("notifyEn", true); // Default: Enabled
+  settings.notifyPosition =
+      preferences.getUChar("notifyPos", 0); // Default: Bottom
+  settings.weatherEnabled =
+      preferences.getBool("weatherEn", false); // Default: Disabled
+  settings.weatherLat = preferences.getFloat("weatherLat", 0);
+  settings.weatherLon = preferences.getFloat("weatherLon", 0);
+  settings.weatherUseFahrenheit =
+      preferences.getBool("weatherF", false); // Default: Celsius
+  String loadedWeatherKey = preferences.getString("weatherKey", "");
+  strncpy(settings.weatherApiKey, loadedWeatherKey.c_str(), 32);
+  settings.weatherApiKey[32] = '\0';
+
+  // CYD hardware settings (no upstream equivalent)
+  settings.touchEnabled = preferences.getBool("touchEn", true);
+  settings.ldrAutoBrightness = preferences.getBool("ldrAuto", false);
+  settings.ldrMinBrightness = preferences.getUChar("ldrMin", LDR_MIN_BRIGHTNESS);
+  settings.rgbLedEnabled = preferences.getBool("rgbLed", true);
+  settings.marioBounceHeight =
+      preferences.getUChar("marioBnceH", 35); // Default: 3.5
+  settings.marioBounceSpeed =
+      preferences.getUChar("marioBnceS", 6); // Default: 0.6
+  settings.marioSmoothAnimation =
+      preferences.getBool("marioSmooth", false); // Default: 2-frame
+  settings.marioWalkSpeed =
+      preferences.getUChar("marioWalkSpd", 20); // Default: 2.0
+  settings.marioIdleEncounters =
+      preferences.getBool("marioEnctr", false); // Default: disabled
+  settings.marioEncounterFreq =
+      preferences.getUChar("marioEncFrq", 1); // Default: Normal
+  settings.marioEncounterSpeed =
+      preferences.getUChar("marioEncSpd", 1); // Default: Normal
+  settings.pongBallSpeed =
+      preferences.getUChar("pongBallSpd", 18); // Default: 18
+  settings.pongBounceStrength =
+      preferences.getUChar("pongBncStr", 3); // Default: 0.3
+  settings.pongBounceDamping =
+      preferences.getUChar("pongBncDmp", 85); // Default: 0.85
+  settings.pongPaddleWidth =
+      preferences.getUChar("pongPadWid", 20); // Default: 20
+  settings.pongHorizontalBounce =
+      preferences.getBool("pongHorizBnc", true); // Default: true
+  settings.pongDigitShatter =
+      preferences.getBool("pongShatter", true); // Default: true
+  settings.pacmanSpeed =
+      preferences.getUChar("pacmanSpeed", 10); // Default: 1.0 patrol speed
+  settings.pacmanEatingSpeed =
+      preferences.getUChar("pacmanEatSpeed", 20); // Default: 2.0 eating speed
+  settings.pacmanMouthSpeed =
+      preferences.getUChar("pacmanMouthSpd", 10); // Default: 1.0 Hz (shortened key name)
+  settings.pacmanPelletCount =
+      preferences.getUChar("pacmanPellCount", 8); // Default: 8 (shortened key name)
+  settings.pacmanPelletRandomSpacing =
+      preferences.getBool("pacmanPellRand", true); // Default: true (shortened key name)
+  settings.pacmanBounceEnabled =
+      preferences.getBool("pacmanBounce", true); // Default: true
+  settings.spaceCharacterType =
+      preferences.getUChar("spaceChar", 1); // Default: Ship
+  settings.spacePatrolSpeed =
+      preferences.getUChar("spacePatrol", 5); // Default: 0.5
+  settings.spaceAttackSpeed =
+      preferences.getUChar("spaceAttack", 25); // Default: 2.5
+  settings.spaceLaserSpeed =
+      preferences.getUChar("spaceLaser", 40); // Default: 4.0
+  settings.spaceExplosionGravity =
+      preferences.getUChar("spaceExpGrv", 5); // Default: 0.5
+  settings.snakeSpeed =
+      preferences.getUChar("snakeSpeed", 12); // Default: 1.2 px/frame
+  settings.snakeLength =
+      preferences.getUChar("snakeLen", 8); // Default: 8 segments
+  settings.snakeWallBorder =
+      preferences.getBool("snakeBorder", false); // Default: no frame
+  settings.snakeShowDate =
+      preferences.getBool("snakeDate", false); // Default: hidden (centred clock)
+  settings.tetrisFallSpeed =
+      preferences.getUChar("tetFallSpd", 12); // Default: 1.2
+  settings.tetrisBlockStyle =
+      preferences.getUChar("tetBlockSty", 0); // Default: LCD grid
+  settings.tetrisIdleTumble =
+      preferences.getBool("tetIdleTmbl", true); // Default: on
+  settings.tetrisAnimStyle =
+      preferences.getUChar("tetAnimSty", 1); // Default: falling dots
+  settings.tetrisShowDate =
+      preferences.getBool("tetShowDate", true); // Default: show date
+  settings.tetrisDatePosition =
+      preferences.getUChar("tetDatePos", 1); // Default: bottom
+  settings.tetrisDotSpeed =
+      preferences.getUChar("tetDotSpd", 12); // Default: 1.2
+  settings.tetrisDotOrder =
+      preferences.getUChar("tetDotOrd", 0); // Default: bottom-up
+  settings.tetrisDigitBounce =
+      preferences.getBool("tetBounce", true); // Default: bounce on
+  settings.tetrisSmoothGame =
+      preferences.getBool("tetSmooth", false); // Default: real-game (off)
+  settings.tetrisSmallClock =
+      preferences.getBool("tetSmallClk", false); // Default: off (centred clock)
+  settings.tetrisSmallClockPos =
+      preferences.getUChar("tetSmallPos", 1); // Default: top-right
+  settings.asteroidsShipSpeed =
+      preferences.getUChar("astShipSpd", 12); // Default: 1.2
+  settings.asteroidsRockCount =
+      preferences.getUChar("astRocks", 2); // Default: 2 rocks
+  settings.asteroidsRockSpeed =
+      preferences.getUChar("astRockSpd", 8); // Default: 0.8
+  settings.asteroidsShowDate =
+      preferences.getBool("astDate", false); // Default: hidden (centred clock)
+  settings.asteroidsTransparent =
+      preferences.getBool("astTransp", true); // Default: transparent digits
+  settings.dinoSpeed =
+      preferences.getUChar("dinoSpeed", 12); // Default: 1.2
+  settings.dinoCactusFreq =
+      preferences.getUChar("dinoCactus", 1); // Default: normal
+  settings.dinoShowClouds =
+      preferences.getBool("dinoClouds", true); // Default: clouds on
+  settings.dinoShowDate =
+      preferences.getBool("dinoDate", false); // Default: hidden (centred clock)
+  settings.matrixRainSpeed =
+      preferences.getUChar("mxSpeed", 12); // Default: 1.2
+  settings.matrixRainDensity =
+      preferences.getUChar("mxDensity", 1); // Default: normal
+  settings.matrixShowDate =
+      preferences.getBool("mxDate", false); // Default: hidden (centred clock)
+  settings.matrixTransparent =
+      preferences.getBool("mxTransp", false); // Default: solid digit plates
+  settings.mcMissileSpeed =
+      preferences.getUChar("mcSpeed", 12); // Default: 1.2
+  settings.mcMissileFreq =
+      preferences.getUChar("mcFreq", 1); // Default: normal volleys
+  settings.mcShowDate =
+      preferences.getBool("mcDate", false); // Default: hidden (centred clock)
+
+  bool brightnessSettingsSanitized = false;
+  uint8_t sanitizedDisplayBrightness =
+      sanitizeBrightnessValue(settings.displayBrightness);
+  if (sanitizedDisplayBrightness != settings.displayBrightness) {
+    settings.displayBrightness = sanitizedDisplayBrightness;
+    brightnessSettingsSanitized = true;
+  }
+
+  uint8_t sanitizedDimBrightness = sanitizeBrightnessValue(settings.dimBrightness);
+  if (sanitizedDimBrightness != settings.dimBrightness) {
+    settings.dimBrightness = sanitizedDimBrightness;
+    brightnessSettingsSanitized = true;
+  }
+
+  // Load network configuration
+  String loadedDeviceName = preferences.getString("deviceName", "pixelclock");
+  strncpy(settings.deviceName, loadedDeviceName.c_str(), 31);
+  settings.deviceName[31] = '\0';
+  settings.showIPAtBoot =
+      preferences.getBool("showIPBoot", true); // Default: Show IP at startup
+  settings.useStaticIP =
+      preferences.getBool("useStaticIP", false); // Default: DHCP
+  String loadedIP = preferences.getString("staticIP", "192.168.1.100");
+  String loadedGW = preferences.getString("gateway", "192.168.1.1");
+  String loadedSN = preferences.getString("subnet", "255.255.255.0");
+  String loadedDNS1 = preferences.getString("dns1", "8.8.8.8");
+  String loadedDNS2 = preferences.getString("dns2", "8.8.4.4");
+
+  strncpy(settings.staticIP, loadedIP.c_str(), 15);
+  settings.staticIP[15] = '\0';
+  strncpy(settings.gateway, loadedGW.c_str(), 15);
+  settings.gateway[15] = '\0';
+  strncpy(settings.subnet, loadedSN.c_str(), 15);
+  settings.subnet[15] = '\0';
+  strncpy(settings.dns1, loadedDNS1.c_str(), 15);
+  settings.dns1[15] = '\0';
+  strncpy(settings.dns2, loadedDNS2.c_str(), 15);
+  settings.dns2[15] = '\0';
+
+  String loadedNtp1 = preferences.getString("ntpServer1", NTP_SERVER_PRIMARY);
+  String loadedNtp2 = preferences.getString("ntpServer2", NTP_SERVER_SECONDARY);
+  strncpy(settings.ntpServer1, loadedNtp1.c_str(), 63);
+  settings.ntpServer1[63] = 0;
+  strncpy(settings.ntpServer2, loadedNtp2.c_str(), 63);
+  settings.ntpServer2[63] = 0;
+
+  // Sprite colors: fill from defaults, then overlay any stored slots. Length-based
+  // + append-only -> a firmware with MORE slots keeps the user's existing colors
+  // and gets defaults for the new ones (no garbage from a shorter stored blob).
+  for (int i = 0; i < COL_COUNT; i++) {
+    settings.spriteColors[i] = SPRITE_COLOR_DEFAULTS[i];
+  }
+  // getBytes copies min(stored, requested) bytes, leaving extra slots at default.
+  size_t storedColorBytes = preferences.getBytesLength("spriteCols");
+  preferences.getBytes("spriteCols", settings.spriteColors,
+                       COL_COUNT * sizeof(uint16_t));
+  // Upgrade path: blobs saved before per-style digit colors existed end before the
+  // COL_DIGITS_S* slots. Seed each style's digit color from the old single global
+  // COL_DIGITS so existing devices keep whatever digit color the user had.
+  if (storedColorBytes <= COL_DIGITS_S0 * sizeof(uint16_t)) {
+    for (int s = COL_DIGITS_S0; s <= COL_DIGITS_S13; s++) {
+      settings.spriteColors[s] = settings.spriteColors[COL_DIGITS];
+    }
+  }
+
+  preferences.end();
+
+  if (brightnessSettingsSanitized) {
+    saveSettings();
+    DBG_WARN("Brightness settings sanitized for this hardware build");
+  }
+
+  DBG_INFO("Settings loaded (v2.0 - Compact Grid Layout)");
+}
+
+void saveSettings() {
+  sanitizeBrightnessSettings();
+  preferences.begin(NVS_NAMESPACE, false); // Read-write
+  preferences.putString("cycleConfig", settings.cycleConfig);
+  preferences.putInt("clockStyle", settings.clockStyle);
+  preferences.putInt("gmtOffset", settings.gmtOffset); // Keep for backward compatibility
+  preferences.putBool("dst", settings.daylightSaving);  // Keep for backward compatibility
+  preferences.putString("tz", settings.timezoneString); // New timezone string
+  preferences.putUChar("tzIdx", settings.timezoneIndex); // Timezone region index
+  preferences.putBool("use24Hour", settings.use24Hour);
+  preferences.putInt("dateFormat", settings.dateFormat);
+  preferences.putInt("clockPos", settings.clockPosition);
+  preferences.putInt("clockOffset", settings.clockOffset);
+  preferences.putUChar("colonRate", settings.colonBlinkRate);
+  preferences.putBool("schedDim", settings.enableScheduledDimming);
+  preferences.putUChar("dimStart", settings.dimStartHour);
+  preferences.putUChar("dimStartMin", settings.dimStartMinute);
+  preferences.putUChar("dimEnd", settings.dimEndHour);
+  preferences.putUChar("dimEndMin", settings.dimEndMinute);
+  preferences.putUChar("dimBright", settings.dimBrightness);
+  preferences.putBool("schedOff", settings.enableScheduledOff);
+  preferences.putUChar("offStart", settings.offStartHour);
+  preferences.putUChar("offStartMin", settings.offStartMinute);
+  preferences.putUChar("offEnd", settings.offEndHour);
+  preferences.putUChar("offEndMin", settings.offEndMinute);
+  preferences.putBool("notifyEn", settings.notifyEnabled);
+  preferences.putUChar("notifyPos", settings.notifyPosition);
+  preferences.putBool("weatherEn", settings.weatherEnabled);
+  preferences.putFloat("weatherLat", settings.weatherLat);
+  preferences.putFloat("weatherLon", settings.weatherLon);
+  preferences.putBool("weatherF", settings.weatherUseFahrenheit);
+  preferences.putString("weatherKey", settings.weatherApiKey);
+  preferences.putUChar("marioBnceS", settings.marioBounceSpeed);
+  preferences.putBool("marioSmooth", settings.marioSmoothAnimation);
+  preferences.putUChar("marioWalkSpd", settings.marioWalkSpeed);
+  preferences.putBool("marioEnctr", settings.marioIdleEncounters);
+  preferences.putUChar("marioEncFrq", settings.marioEncounterFreq);
+  preferences.putUChar("marioEncSpd", settings.marioEncounterSpeed);
+  preferences.putUChar("pongBallSpd", settings.pongBallSpeed);
+  preferences.putUChar("pongBncStr", settings.pongBounceStrength);
+  preferences.putUChar("pongBncDmp", settings.pongBounceDamping);
+  preferences.putUChar("pongPadWid", settings.pongPaddleWidth);
+  preferences.putBool("pongHorizBnc", settings.pongHorizontalBounce);
+  preferences.putBool("pongShatter", settings.pongDigitShatter);
+  preferences.putUChar("pacmanSpeed", settings.pacmanSpeed);
+  preferences.putUChar("pacmanEatSpeed", settings.pacmanEatingSpeed);
+  preferences.putUChar("pacmanMouthSpd", settings.pacmanMouthSpeed);
+  preferences.putUChar("pacmanPellCount", settings.pacmanPelletCount);
+  preferences.putBool("pacmanPellRand", settings.pacmanPelletRandomSpacing);
+  preferences.putBool("pacmanBounce", settings.pacmanBounceEnabled);
+  preferences.putUChar("spaceChar", settings.spaceCharacterType);
+  preferences.putUChar("spacePatrol", settings.spacePatrolSpeed);
+  preferences.putUChar("spaceAttack", settings.spaceAttackSpeed);
+  preferences.putUChar("spaceLaser", settings.spaceLaserSpeed);
+  preferences.putUChar("spaceExpGrv", settings.spaceExplosionGravity);
+  preferences.putUChar("snakeSpeed", settings.snakeSpeed);
+  preferences.putUChar("snakeLen", settings.snakeLength);
+  preferences.putBool("snakeBorder", settings.snakeWallBorder);
+  preferences.putBool("snakeDate", settings.snakeShowDate);
+  preferences.putUChar("tetFallSpd", settings.tetrisFallSpeed);
+  preferences.putUChar("tetBlockSty", settings.tetrisBlockStyle);
+  preferences.putUChar("tronBikeStyle", settings.tronBikeStyle);
+  preferences.putBool("tetIdleTmbl", settings.tetrisIdleTumble);
+  preferences.putUChar("tetAnimSty", settings.tetrisAnimStyle);
+  preferences.putBool("tetShowDate", settings.tetrisShowDate);
+  preferences.putUChar("tetDatePos", settings.tetrisDatePosition);
+  preferences.putUChar("tetDotSpd", settings.tetrisDotSpeed);
+  preferences.putUChar("tetDotOrd", settings.tetrisDotOrder);
+  preferences.putBool("tetBounce", settings.tetrisDigitBounce);
+  preferences.putBool("tetSmooth", settings.tetrisSmoothGame);
+  preferences.putBool("tetSmallClk", settings.tetrisSmallClock);
+  preferences.putUChar("tetSmallPos", settings.tetrisSmallClockPos);
+  preferences.putUChar("astShipSpd", settings.asteroidsShipSpeed);
+  preferences.putUChar("astRocks", settings.asteroidsRockCount);
+  preferences.putUChar("astRockSpd", settings.asteroidsRockSpeed);
+  preferences.putBool("astDate", settings.asteroidsShowDate);
+  preferences.putBool("astTransp", settings.asteroidsTransparent);
+  preferences.putUChar("dinoSpeed", settings.dinoSpeed);
+  preferences.putUChar("dinoCactus", settings.dinoCactusFreq);
+  preferences.putBool("dinoClouds", settings.dinoShowClouds);
+  preferences.putBool("dinoDate", settings.dinoShowDate);
+  preferences.putUChar("mxSpeed", settings.matrixRainSpeed);
+  preferences.putUChar("mxDensity", settings.matrixRainDensity);
+  preferences.putBool("mxDate", settings.matrixShowDate);
+  preferences.putBool("mxTransp", settings.matrixTransparent);
+  preferences.putUChar("mcSpeed", settings.mcMissileSpeed);
+  preferences.putUChar("mcFreq", settings.mcMissileFreq);
+  preferences.putBool("mcDate", settings.mcShowDate);
+
+  // Save network configuration
+  preferences.putString("deviceName", settings.deviceName);
+  preferences.putBool("showIPBoot", settings.showIPAtBoot);
+  preferences.putBool("useStaticIP", settings.useStaticIP);
+  preferences.putString("staticIP", settings.staticIP);
+  preferences.putString("gateway", settings.gateway);
+  preferences.putString("subnet", settings.subnet);
+  preferences.putString("dns1", settings.dns1);
+  preferences.putString("dns2", settings.dns2);
+  preferences.putString("ntpServer1", settings.ntpServer1);
+  preferences.putString("ntpServer2", settings.ntpServer2);
+
+  // Save user-editable sprite colors (RGB565 array, indexed by ColorSlot)
+  preferences.putBytes("spriteCols", settings.spriteColors,
+                       COL_COUNT * sizeof(uint16_t));
+
+  // CYD hardware settings (no upstream equivalent)
+  preferences.putBool("touchEn", settings.touchEnabled);
+  preferences.putBool("ldrAuto", settings.ldrAutoBrightness);
+  preferences.putUChar("ldrMin", settings.ldrMinBrightness);
+  preferences.putBool("rgbLed", settings.rgbLedEnabled);
+
+  preferences.end();
+
+  DBG_INFO("Settings saved");
+}

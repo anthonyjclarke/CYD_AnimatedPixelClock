@@ -1,0 +1,210 @@
+/*
+ * AnimatedPixelClock - Clock Global State Definitions
+ *
+ * Definitions for all clock-specific global variables.
+ * These variables are used across multiple clock implementations.
+ */
+
+#include "clock_globals.h"
+#include "clock_constants.h"
+#include "clocks.h"
+#include "../display/display.h"
+#include <cstring>
+
+// ========== Common Digit Positioning ==========
+// Standard digit X positions for time display (18px spacing, starting at 19)
+const int DIGIT_X[5] = {19, 37, 55, 73, 91};
+
+// Progressive fragmentation: spawn 25%, then 50%, then 25%
+const float FRAGMENT_SPAWN_PERCENT[3] = {0.25, 0.50, 0.25};
+
+// ========== Mario Clock Globals ==========
+MarioState mario_state = MARIO_IDLE;
+float mario_x = MARIO_START_X;
+float mario_jump_y = 0.0;
+float jump_velocity = 0.0;
+int mario_base_y = 62;
+bool mario_facing_right = true;
+int mario_walk_frame = 0;
+unsigned long last_mario_update = 0;
+
+// Time display state
+int displayed_hour = 0;
+int displayed_min = 0;
+bool displayed_is_pm = false;
+bool time_overridden = false;
+unsigned long time_override_start = 0;  // Track when override started for timeout
+
+// Animation control
+int last_minute = -1;
+bool animation_triggered = false;
+bool digit_bounce_triggered = false;
+
+// Target tracking for digit changes
+int num_targets = 0;
+int target_x_positions[4] = {0};
+int target_digit_index[4] = {0};
+int target_digit_values[4] = {0};
+int current_target_index = 0;
+
+// Digit bounce animation state
+float digit_offset_y[5] = {0};
+float digit_velocity[5] = {0};
+float digit_offset_x[5] = {0};  // Horizontal offset for Pong side hits
+float digit_velocity_x[5] = {0};  // Horizontal velocity for Pong side hits
+
+// ========== Mario Idle Encounter Globals ==========
+MarioEnemy currentEnemy = {ENEMY_NONE, ENEMY_DEAD, 0, 0, 0, true};
+MarioFireball marioFireball = {0, 0, 0, false};
+unsigned long lastEncounterEnd = 0;
+unsigned long nextEncounterDelay = 15000;
+
+// ========== Space Clock Globals ==========
+SpaceState space_state = SPACE_PATROL;
+float space_x = SCREEN_CENTER_X;
+const float space_y = 56;  // Fixed Y position at bottom
+int space_anim_frame = 0;
+int space_patrol_direction = 1;
+unsigned long last_space_update = 0;
+unsigned long last_space_sprite_toggle = 0;
+
+// Laser and explosions
+Laser space_laser = {0, 0, 0, false, -1};
+SpaceFragment space_fragments[MAX_SPACE_FRAGMENTS];
+int space_explosion_timer = 0;
+
+// ========== Pong Clock Globals ==========
+PongBall pong_balls[MAX_PONG_BALLS];
+SpaceFragment pong_fragments[MAX_PONG_FRAGMENTS];
+FragmentTarget fragment_targets[MAX_PONG_FRAGMENTS];
+DigitTransition digit_transitions[5];
+BreakoutPaddle breakout_paddle = {SCREEN_CENTER_X, SCREEN_CENTER_X, 20, 3};  // x, target_x, width, speed
+unsigned long last_pong_update = 0;
+
+// Ball state
+bool ball_stuck_to_paddle[MAX_PONG_BALLS] = {false};
+unsigned long ball_stick_release_time[MAX_PONG_BALLS] = {0};
+int ball_stuck_x_offset[MAX_PONG_BALLS] = {0};
+int paddle_last_x = SCREEN_CENTER_X;
+
+// ========== Pac-Man Clock Globals ==========
+PacmanState pacman_state = PACMAN_PATROL;
+float pacman_x = 30.0;
+float pacman_y = 56.0;  // Bottom patrol line
+int pacman_direction = 1;
+int pacman_mouth_frame = 0;
+unsigned long last_pacman_update = 0;
+unsigned long last_pacman_mouth_toggle = 0;
+
+// Animation control
+int last_minute_pacman = -1;
+bool pacman_animation_triggered = false;
+
+// Digit eating state
+bool digit_being_eaten[5] = {false};
+int digit_eaten_rows_left[5] = {0};
+int digit_eaten_rows_right[5] = {0};
+
+// Patrol pellets
+PatrolPellet patrol_pellets[MAX_PATROL_PELLETS];
+int num_pellets = 0;
+
+// Eating path tracking
+uint8_t digitEatenPellets[5][5] = {{0}};
+uint8_t current_eating_digit_index = 0;
+uint8_t current_eating_digit_value = 0;
+uint8_t current_path_step = 0;
+float pellet_eat_distance = 0.0;
+
+// Target digit queue
+uint8_t target_digit_queue[4] = {0};
+uint8_t target_digit_new_values[4] = {0};
+uint8_t target_queue_length = 0;
+uint8_t target_queue_index = 0;
+uint8_t pending_digit_index = 255;
+uint8_t pending_digit_value = 0;
+
+// ========== Reset All Clock Animation State ==========
+// Called whenever the active clock style changes (touch button, /save,
+// /api/import). Brings every animated clock back to its idle baseline so
+// the next minute-change animation starts from a clean slate, regardless
+// of where the previous animation was interrupted.
+void resetClockAnimationState() {
+  // Mario
+  mario_state = MARIO_IDLE;
+  mario_x = MARIO_START_X;
+  animation_triggered = false;
+  last_minute = -1;
+
+  // Space
+  space_state = SPACE_PATROL;
+  space_x = SCREEN_CENTER_X;
+
+  // Pong
+  resetPongAnimation();
+
+  // Pac-Man
+  pacman_state = PACMAN_PATROL;
+  pacman_x = 30.0f;
+  pacman_y = PACMAN_PATROL_Y;
+  pacman_direction = 1;
+  pacman_animation_triggered = false;
+  last_minute_pacman = -1;
+  for (int i = 0; i < 5; i++) {
+    digit_being_eaten[i] = false;
+    digit_eaten_rows_left[i] = 0;
+    digit_eaten_rows_right[i] = 0;
+  }
+  // Clear the per-slot eaten-pellet mask too. An animation aborted mid-eat
+  // (mode switch, /save, style cycle) otherwise leaves stale bits that punch
+  // holes in a static digit until that slot happens to be eaten again.
+  memset(digitEatenPellets, 0, sizeof(digitEatenPellets));
+  generatePellets();
+
+  // Snake + Tetris + Asteroids + Dino + Matrix (state is file-local in their
+  // .cpp files)
+  resetSnakeAnimation();
+  resetTetrisAnimation();
+  resetAsteroidsAnimation();
+  resetDinoAnimation();
+  resetMatrixRainAnimation();
+  resetBombermanAnimation();
+  resetTronAnimation();
+
+  // Cross-cutting override + queue residue (leftover Pac-Man eat-queue
+  // state can survive an aborted animation; clear so the next minute
+  // change starts clean).
+  time_overridden = false;
+  time_override_start = 0;
+  target_queue_length = 0;
+  target_queue_index = 0;
+  pending_digit_index = 255;
+  pending_digit_value = 0;
+}
+
+// ========== WiFi Status Icon ==========
+// Draw a "no WiFi" icon (8x8 pixels) - WiFi symbol with diagonal cross
+void drawNoWiFiIcon(int x, int y) {
+  // WiFi arcs (signal strength bars)
+  // Small arc (closest to antenna)
+  display.drawPixel(x + 3, y + 5, DISPLAY_WHITE);
+  display.drawPixel(x + 4, y + 5, DISPLAY_WHITE);
+
+  // Medium arc
+  display.drawPixel(x + 2, y + 4, DISPLAY_WHITE);
+  display.drawPixel(x + 5, y + 4, DISPLAY_WHITE);
+  display.drawPixel(x + 2, y + 3, DISPLAY_WHITE);
+  display.drawPixel(x + 5, y + 3, DISPLAY_WHITE);
+
+  // Large arc (outer signal)
+  display.drawPixel(x + 1, y + 2, DISPLAY_WHITE);
+  display.drawPixel(x + 6, y + 2, DISPLAY_WHITE);
+  display.drawPixel(x + 0, y + 1, DISPLAY_WHITE);
+  display.drawPixel(x + 7, y + 1, DISPLAY_WHITE);
+
+  // Center dot (antenna/device)
+  display.fillRect(x + 3, y + 6, 2, 2, DISPLAY_WHITE);
+
+  // Diagonal cross (X through the icon to indicate "no connection")
+  display.drawLine(x, y, x + 7, y + 7, DISPLAY_WHITE);
+}
