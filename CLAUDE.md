@@ -19,11 +19,10 @@ in resistive ("R") and capacitive ("C") revisions — see `HAS_RESISTIVE_TOUCH`.
 
 ## Rendering model — the central architectural decision
 
-Clock styles draw into an **off-screen RGB565 `GFXcanvas16`** of
-`CANVAS_WIDTH`×`CANVAS_HEIGHT` logical pixels, never onto the TFT directly.
-`CydDisplay::display()` expands each logical pixel into a `DISPLAY_SCALE`
-square block and pushes it. Canvas × scale equals the panel exactly:
-160×120 @ ×2 on the 2.8″, 240×160 @ ×2 on the 4.0″. No letterboxing on either.
+Clock styles draw into an **off-screen RGB565 `GFXcanvas16`**, never onto the
+TFT directly. `CydDisplay::display()` expands each logical pixel into a
+`DISPLAY_SCALE` block; canvas × scale equals the panel exactly — 160×120 @ ×2 on
+the 2.4″/2.8″, 240×160 @ ×2 on the 4.0″. No letterboxing on any board.
 
 - Animation code addresses **`SCREEN_WIDTH` / `SCREEN_HEIGHT` only** (aliases of
   the canvas dims). Never write a raw panel coordinate in a clock style, and
@@ -39,14 +38,12 @@ Every style positions itself from these canvas-derived metrics, never from
 literal coordinates. Two rules split the metrics:
 
 - **Text scales with the canvas.** `DIGIT_TEXT_SIZE` holds the digit row at ~75%
-  of the width on both boards (upstream's five digits filled 70% of 128 px).
-- **Sprites do not.** Both boards render at ×2, so a logical pixel is the same
-  physical size on each; sprite art therefore stays physically identical and the
-  larger panel just shows more room. Scaling it means redrawing every sprite.
+  of the width on any board, the proportion upstream had.
+- **Sprite art is magnified, never redrawn.** It is fixed pixel work, so
+  `SPRITE_SCALE` expands it at draw time — `CydDisplay::setSpriteScale`.
 
-`CHAR_BAND` is the load-bearing constant: Mario bounces a digit by putting his
-head against its underside, so the gap between the digit row and `GROUND_Y` must
-stay exactly one sprite tall. The rest of the vertical composition flows from it.
+The vertical stack is built bottom-up from the text rows, because `CHAR_BAND`
+must stay exactly one sprite tall: Mario bounces a digit with his head.
 
 Pac-Man (pellet grid), TRON (seven segments) and Bomberman (bricks) draw their
 own digits and derive their own row geometry rather than using `DIGIT_X`.
