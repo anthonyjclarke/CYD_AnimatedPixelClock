@@ -6,7 +6,7 @@
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-6.x-orange.svg)
 ![Board](https://img.shields.io/badge/CYD-2.8%22%20%7C%204.0%22-yellow.svg)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)
-![Status](https://img.shields.io/badge/status-builds%20%C2%B7%20untested%20on%20hardware-orange.svg)
+![Status](https://img.shields.io/badge/status-running%20on%20CYD%202.4%22-yellowgreen.svg)
 
 An animated retro-arcade clock — Mario, Space Invaders, Pac-Man, Snake, Tetris,
 Asteroids, Dino Runner, Matrix Rain, TRON, Bomberman and more — running on the
@@ -39,21 +39,22 @@ larger canvas.
 
 ## Port status
 
-**The port is feature-complete and builds on both targets.** Nothing has been
-flashed or verified on real hardware yet — every layout below is derived
-arithmetic, checked for bounds but not seen running.
+**Running on a CYD 2.4″.** The display path is confirmed on hardware: canvas,
+scaled blit, colour order and row-change detection all work. The clock layouts
+are still derived arithmetic that has been seen booting but not yet judged style
+by style, and the 2.8″ and 4.0″ targets remain build-only.
 
-| Area                                       | Status                                       |
-|:-------------------------------------------|:---------------------------------------------|
-| Board environments, partitions, config      | Complete                                     |
-| CYD display layer (`CydDisplay`)            | Complete                                     |
-| `Settings` / globals restructure            | Complete                                     |
-| Web UI trimmed to in-scope features         | Complete                                     |
-| `Serial.print` → `DBG_*` conversion         | Complete — 64 call sites                     |
-| Touch, LDR, RGB LED modules                 | Complete — not yet verified on hardware      |
-| Archive of out-of-scope upstream assets     | Complete                                     |
-| Clock-style layout rework, all 14 styles    | Complete — not yet verified on hardware      |
-| Hardware bring-up on either board           | **Not started**                              |
+| Area                                       | Status                                        |
+|:-------------------------------------------|:----------------------------------------------|
+| Board environments, partitions, config      | Complete                                      |
+| CYD display layer (`CydDisplay`)            | **Verified on a 2.4″** — colour order included |
+| `Settings` / globals restructure            | Complete                                      |
+| Web UI trimmed to in-scope features         | Complete — not yet exercised in a browser     |
+| `Serial.print` → `DBG_*` conversion         | Complete — 64 call sites                      |
+| Touch, LDR, RGB LED modules                 | Complete — not yet verified on hardware       |
+| Archive of out-of-scope upstream assets     | Complete                                      |
+| Clock-style layout rework, all 14 styles    | Complete — boots, not yet judged style by style |
+| Bring-up on 2.8″ / 4.0″                     | Not started                                   |
 
 Build sizes, both environments well inside a 1.792 MB OTA slot:
 
