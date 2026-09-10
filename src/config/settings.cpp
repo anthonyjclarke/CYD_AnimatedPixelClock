@@ -201,7 +201,7 @@ void loadSettings() {
     preferences.putUChar("marioBnceS", 6);    // Default: 0.6
     preferences.putBool("marioSmooth", false); // Default: 2-frame animation
     preferences.putUChar("marioWalkSpd", 20); // Default: 2.0
-    preferences.putBool("marioEnctr", false); // Default: no idle encounters
+    preferences.putBool("marioEnctr", true);  // Default: idle encounters on
     preferences.putUChar("marioEncFrq", 1);   // Default: Normal frequency
     preferences.putUChar("marioEncSpd", 1);   // Default: Normal speed
     preferences.putUChar("pongBallSpd", 18);  // Default: 18
@@ -349,7 +349,7 @@ void loadSettings() {
   settings.marioWalkSpeed =
       preferences.getUChar("marioWalkSpd", 20); // Default: 2.0
   settings.marioIdleEncounters =
-      preferences.getBool("marioEnctr", false); // Default: disabled
+      preferences.getBool("marioEnctr", true); // Default: enabled
   settings.marioEncounterFreq =
       preferences.getUChar("marioEncFrq", 1); // Default: Normal
   settings.marioEncounterSpeed =
