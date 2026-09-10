@@ -96,6 +96,17 @@ verified on hardware. See **Port status** in `README.md`.
   to fill its panel exactly. Upstream drew 128×64; clock-style layouts are being
   reworked to the larger canvas rather than letterboxed.
 
+### Fixed
+
+- **Colours rendered byte-swapped on the panel.** `GFXcanvas16` stores RGB565 in
+  host order, but TFT_eSPI defaults to `_swapBytes = false` and pushes an image
+  array to the display byte-for-byte, and the panel wants big-endian. Yellow
+  (`0xFFE0`) arrived as `0xE0FF` and rendered purple; red rendered blue, green
+  rendered red. White and black are palindromes so they looked correct, which
+  disguised the fault as "some colours are wrong". `CydDisplay::begin()` now
+  calls `tft.setSwapBytes(true)`. Found on hardware — the canvas side had been
+  verified as host-order, but the consuming side never was.
+
 ### Removed
 
 Moved to `archive/`, not deleted — see `archive/README.md` to restore any of it.

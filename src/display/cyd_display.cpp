@@ -40,6 +40,16 @@ bool CydDisplay::begin() {
 
   tft.init();
   tft.setRotation(TFT_ROTATION);
+
+  // GFXcanvas16 stores RGB565 in host (little-endian) order, but TFT_eSPI
+  // defaults to _swapBytes = false and pushes an image array to the panel
+  // byte-for-byte. The panel wants big-endian, so without this every pushed
+  // pixel arrives byte-swapped: yellow (0xFFE0) lands as 0xE0FF and renders
+  // purple, red renders blue, green renders red. White and black are
+  // palindromes and look correct either way, which is what makes the fault
+  // read as "some colours are wrong" rather than "the display is broken".
+  tft.setSwapBytes(true);
+
   tft.fillScreen(TFT_BLACK);
 
   // Backlight on PWM so the upstream brightness schedule has something to drive.
