@@ -1,5 +1,5 @@
 /*
- * AnimatedPixelClock - Space Invaders Clock
+ * CYD_AnimatedPixelClock - Space Invaders Clock
  *
  * Clock style 3: Space character (Invader or Ship) patrols and shoots
  * laser at digits when minute changes. 
@@ -224,8 +224,8 @@ void updateSpaceLaser() {
   space_laser.length += (settings.spaceLaserSpeed / 31.25);
 
   // Check if reached digit (bottom of time digits)
-  const int SPACE_TIME_Y = 16;
-  int digit_bottom_y = SPACE_TIME_Y + 24;
+  const int SPACE_TIME_Y = TIME_Y_BASE;
+  int digit_bottom_y = SPACE_TIME_Y + DIGIT_H;
   int laser_end_y = space_laser.y - space_laser.length;
 
   if (laser_end_y <= digit_bottom_y) {
@@ -253,7 +253,7 @@ void fireSpaceLaser(int target_digit_idx) {
 
 // Spawn space explosion fragments
 void spawnSpaceExplosion(int digitIndex) {
-  const int SPACE_TIME_Y = 16;
+  const int SPACE_TIME_Y = TIME_Y_BASE;
   int digit_x = DIGIT_X[digitIndex] + 9;
   int digit_y = SPACE_TIME_Y + 12;
 
@@ -283,7 +283,7 @@ void updateSpaceFragments() {
       space_fragments[i].x += space_fragments[i].vx;
       space_fragments[i].y += space_fragments[i].vy;
 
-      if (space_fragments[i].y > 70 ||
+      if (space_fragments[i].y > SCREEN_HEIGHT + 6 ||
           space_fragments[i].x < -5 ||
           space_fragments[i].x > 133) {
         space_fragments[i].active = false;
@@ -394,12 +394,9 @@ void displayClockWithSpaceInvader() {
   struct tm timeinfo;
   if(!getTimeWithTimeout(&timeinfo)) {
     display.setTextSize(1);
-    display.setCursor(20, 28);
-    if (!ntpSynced) {
-      display.print("Syncing time...");
-    } else {
-      display.print("Time Error");
-    }
+    const char *msg = ntpSynced ? "Time Error" : "Syncing time...";
+    display.setCursor(centerText1(strlen(msg)), SCREEN_CENTER_Y - TEXT1_H / 2);
+    display.print(msg);
     return;
   }
 
@@ -426,13 +423,13 @@ void displayClockWithSpaceInvader() {
     case 3: sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday,
                     timeinfo.tm_mon + 1, timeinfo.tm_year + 1900); break;
   }
-  display.setCursor((SCREEN_WIDTH - 60) / 2, 4);
+  display.setCursor(centerText1(strlen(dateStr)), 4);
   display.print(dateStr);
-  drawMeridiemIndicator(110, 4, displayed_is_pm);
+  drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, 4, displayed_is_pm);
 
   // Time digits
-  const int SPACE_TIME_Y = 16;
-  display.setTextSize(3);
+  const int SPACE_TIME_Y = TIME_Y_BASE;
+  display.setTextSize(DIGIT_TEXT_SIZE);
   char digits[5];
   digits[0] = '0' + (displayed_hour / 10);
   digits[1] = '0' + (displayed_hour % 10);

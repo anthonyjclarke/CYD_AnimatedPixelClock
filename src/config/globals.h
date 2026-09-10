@@ -13,6 +13,7 @@
 #include <Arduino.h>
 
 #include "config.h"        // include/config.h - user-tuneable constants
+#include "../clocks/clock_layout.h"  // canvas-derived layout metrics
 #include "color_slots.h"
 
 // ========== Settings Structure ========== 
@@ -206,9 +207,12 @@ struct MarioFireball {
 #define ENCOUNTER_TIME_SCALE MARIO_TICK_SCALE
 #define JUMP_POWER -4.5
 #define GRAVITY 0.6
-#define TIME_Y 26
+// Layout metrics now derive from the canvas - see clocks/clock_layout.h.
+constexpr int TIME_Y = TIME_Y_BASE;
+// How far below Mario's origin his head sits; he bounces a digit by putting it
+// against the underside of the digit row.
 #define MARIO_HEAD_OFFSET 10
-#define DIGIT_BOTTOM (TIME_Y + 21)
+constexpr int DIGIT_BOTTOM = DIGIT_BOTTOM_Y;
 
 // Digit X positions for time display
 extern const int DIGIT_X[5];
@@ -232,8 +236,8 @@ struct Laser {
 
 #define MAX_SPACE_FRAGMENTS 20
 #define LASER_MAX_LENGTH 50
-#define SPACE_PATROL_LEFT 20
-#define SPACE_PATROL_RIGHT 108
+constexpr int SPACE_PATROL_LEFT = 20;
+constexpr int SPACE_PATROL_RIGHT = SCREEN_WIDTH - 20;
 
 struct SpaceFragment {
   float x, y;
@@ -289,9 +293,11 @@ struct FragmentTarget {
 #define MAX_PONG_BALLS 2
 #define MAX_PONG_FRAGMENTS 40
 #define PONG_BALL_SIZE 2
-#define PONG_TIME_Y 16
-#define PONG_PLAY_AREA_TOP 10          // Above digits (ball can enter date area)
-#define BREAKOUT_PADDLE_Y 60
+constexpr int PONG_TIME_Y = TIME_Y_BASE;
+// Ball may travel above the digits, into the date band.
+constexpr int PONG_PLAY_AREA_TOP = 10;
+// Paddle rides just above the bottom edge.
+constexpr int BREAKOUT_PADDLE_Y = SCREEN_HEIGHT - 4;
 #define BREAKOUT_PADDLE_HEIGHT 2
 #define PONG_UPDATE_INTERVAL 16        // ms; matches the 60 Hz render frame (constants
                                        // below are per-tick, rescaled from the 20 ms tuning)
@@ -333,11 +339,15 @@ struct PathStep {
 // Pac-Man constants
 #define PACMAN_ANIM_SPEED 16  // ms; matches the 60 Hz render frame (speeds are
                               // divided by 18.75 instead of 20 to compensate)
-#define PACMAN_PATROL_Y 56
+constexpr int PACMAN_PATROL_Y = GROUND_Y;
 #define MAX_PATROL_PELLETS 20
-#define TIME_Y_PACMAN 16
-#define PELLET_SPACING 5
-#define PELLET_SIZE 1
+constexpr int TIME_Y_PACMAN = TIME_Y_BASE;
+// Pac-Man draws its digits as a 5x7 pellet grid rather than as text, so the
+// pellet pitch - not the font - sets the digit size. Upstream used a 5px pitch
+// against a size-3 glyph; this keeps that same ratio at whatever size the
+// board's digits are.
+constexpr int PELLET_SPACING = DIGIT_TEXT_SIZE + 2;
+constexpr int PELLET_SIZE = DIGIT_TEXT_SIZE / 2;
 #define DIGIT_GRID_W 5
 #define DIGIT_GRID_H 7
 

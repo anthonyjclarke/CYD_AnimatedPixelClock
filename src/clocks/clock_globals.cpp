@@ -1,5 +1,5 @@
 /*
- * AnimatedPixelClock - Clock Global State Definitions
+ * CYD_AnimatedPixelClock - Clock Global State Definitions
  *
  * Definitions for all clock-specific global variables.
  * These variables are used across multiple clock implementations.
@@ -7,13 +7,15 @@
 
 #include "clock_globals.h"
 #include "clock_constants.h"
+#include "clock_layout.h"
 #include "clocks.h"
 #include "../display/display.h"
 #include <cstring>
 
 // ========== Common Digit Positioning ==========
-// Standard digit X positions for time display (18px spacing, starting at 19)
-const int DIGIT_X[5] = {19, 37, 55, 73, 91};
+// Left edge of each "HH:MM" cell, derived from the canvas (clock_layout.h) so
+// the row stays centred at whatever size the board's digits are drawn.
+const int DIGIT_X[5] = {DIGIT_X_0, DIGIT_X_1, DIGIT_X_2, DIGIT_X_3, DIGIT_X_4};
 
 // Progressive fragmentation: spawn 25%, then 50%, then 25%
 const float FRAGMENT_SPAWN_PERCENT[3] = {0.25, 0.50, 0.25};
@@ -23,7 +25,7 @@ MarioState mario_state = MARIO_IDLE;
 float mario_x = MARIO_START_X;
 float mario_jump_y = 0.0;
 float jump_velocity = 0.0;
-int mario_base_y = 62;
+int mario_base_y = GROUND_Y;
 bool mario_facing_right = true;
 int mario_walk_frame = 0;
 unsigned long last_mario_update = 0;
@@ -62,7 +64,7 @@ unsigned long nextEncounterDelay = 15000;
 // ========== Space Clock Globals ==========
 SpaceState space_state = SPACE_PATROL;
 float space_x = SCREEN_CENTER_X;
-const float space_y = 56;  // Fixed Y position at bottom
+const float space_y = GROUND_Y;  // Fixed Y position on the character baseline
 int space_anim_frame = 0;
 int space_patrol_direction = 1;
 unsigned long last_space_update = 0;

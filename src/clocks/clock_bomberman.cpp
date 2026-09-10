@@ -12,12 +12,29 @@ const uint8_t glyph[10][7] = {
   {14,16,16,30,17,17,14},{31,1,2,4,8,8,8},
   {14,17,17,14,17,17,14},{14,17,17,15,1,1,14}
 };
-const int digitX[4] = {12,40,72,100};
-const int digitY=16;
+// Digits are laid as bricks on a 5x7 glyph, one brick per glyph pixel.
+const int BPITCH=DIGIT_TEXT_SIZE;
+const int BDIGIT_W=5*BPITCH, BDIGIT_H=7*BPITCH;
+const int BGAP=3*BPITCH;        // between the digits of a pair
+const int BCOLON_GAP=4*BPITCH;  // hours to minutes
+const int BROW_W=4*BDIGIT_W+2*BGAP+BCOLON_GAP;
+const int BMARGIN=(SCREEN_WIDTH-BROW_W)/2;
+const int digitX[4]={BMARGIN,
+                     BMARGIN+BDIGIT_W+BGAP,
+                     BMARGIN+2*BDIGIT_W+BGAP+BCOLON_GAP,
+                     BMARGIN+3*BDIGIT_W+2*BGAP+BCOLON_GAP};
+const int digitY=(SCREEN_HEIGHT-BDIGIT_H)/2;
 // Two horizontal corridors joined by five vertical passages. The middle
 // waypoints are beside the digits, never through their glyphs or counters.
-const int laneX[5]={6,34,64,94,122};
-const int laneY[4]={8,22,34,52};
+const int laneX[5]={6,
+                    digitX[1]-BGAP/2,
+                    SCREEN_CENTER_X,
+                    digitX[3]-BGAP/2,
+                    SCREEN_WIDTH-6};
+const int laneY[4]={8,
+                    digitY+BDIGIT_H/4,
+                    digitY+BDIGIT_H*3/4,
+                    SCREEN_HEIGHT-10};
 const int dx[4]={1,0,-1,0}, dy[4]={0,1,0,-1};
 const uint16_t pink=0xF81F, blue=0x329F, orange=0xFC40;
 const int REACH=34;
@@ -93,7 +110,7 @@ void traceFlames(int node,int* lengths,int* digits,int* boxes) {
     lengths[d]=0; digits[d]=-1; boxes[d]=-1;
     for(int s=1;s<=REACH;s++) {
       int x=nx(node)+dx[d]*s,y=ny(node)+dy[d]*s;
-      if(x<2 || x>125 || y<3 || y>59) break;
+      if(x<2 || x>SCREEN_WIDTH-3 || y<3 || y>SCREEN_HEIGHT-5) break;
       lengths[d]=s;
       digits[d]=digitAt(x,y);
       for(int c=0;c<2;c++) if(crates[c]>=0 && abs(x-nx(crates[c]))<=3 && abs(y-ny(crates[c]))<=3) boxes[d]=c;
@@ -232,20 +249,20 @@ void displayClockWithBomberman() {
   }
   age=now-phaseStart;
 
-  display.drawFastHLine(0,1,128,0x2204);
-  display.drawFastHLine(0,61,128,0x2204);
+  display.drawFastHLine(0,1,SCREEN_WIDTH,0x2204);
+  display.drawFastHLine(0,SCREEN_HEIGHT-3,SCREEN_WIDTH,0x2204);
   // Faint paving gives the movement a top-down arcade setting.
-  for(int x=6;x<128;x+=8) {
-    display.drawPixel(x,8,0x1082); display.drawPixel(x,52,0x1082);
+  for(int x=6;x<SCREEN_WIDTH;x+=8) {
+    display.drawPixel(x,laneY[0],0x1082); display.drawPixel(x,laneY[3],0x1082);
   }
-  for(int i=0;i<5;i++) for(int y=12;y<50;y+=6) display.drawPixel(laneX[i],y,0x1082);
+  for(int i=0;i<5;i++) for(int y=laneY[0]+4;y<laneY[3];y+=6) display.drawPixel(laneX[i],y,0x1082);
   for(int i=0;i<4;i++) {
     bool changing=i==activeDigit;
     if(changing && phase==BLAST) {
       float s=age/650.0f;
       for(int r=0;r<7;r++) for(int c=0;c<5;c++) if(glyph[shown[i]][r]&(16>>c)) {
-        int x=digitX[i]+c*4+(int)((c-2)*s*13);
-        int y=digitY+r*4+(int)(-18*s+42*s*s+(r-3)*s*5);
+        int x=digitX[i]+c*BPITCH+(int)((c-2)*s*13);
+        int y=digitY+r*BPITCH+(int)(-18*s+42*s*s+(r-3)*s*5);
         if(age<480) display.fillRect(x,y,2,2,digitColor());
       }
       continue;
@@ -254,12 +271,13 @@ void displayClockWithBomberman() {
     for(int r=0;r<7;r++) for(int c=0;c<5;c++) {
       if(!(glyph[value][r]&(16>>c))) continue;
       if(changing && phase==BUILD && age<(uint32_t)((6-r)*95+c*18)) continue;
-      brick(digitX[i]+c*4,digitY+r*4,digitColor());
+      brick(digitX[i]+c*BPITCH,digitY+r*BPITCH,digitColor());
     }
   }
   // The colon is a pair of floor lights in the central passage.
   if(shouldShowColon()) {
-    display.fillRect(63,25,2,2,digitColor()); display.fillRect(63,37,2,2,digitColor());
+    display.fillRect(SCREEN_CENTER_X-1,digitY+BDIGIT_H/4,2,2,digitColor());
+    display.fillRect(SCREEN_CENTER_X-1,digitY+BDIGIT_H*3/4,2,2,digitColor());
   }
   for(int c=0;c<2;c++) if(crates[c]>=0) {
     int x=nx(crates[c])-3,y=ny(crates[c])-3;
@@ -289,6 +307,6 @@ void displayClockWithBomberman() {
     }
   }
   drawHero(now);
-  if(!settings.use24Hour) drawMeridiemIndicator(108,3,pm);
+  if(!settings.use24Hour) drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, 3, pm);
   if(!wifiConnected) drawNoWiFiIcon(0,3);
 }

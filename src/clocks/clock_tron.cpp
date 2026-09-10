@@ -6,16 +6,35 @@
 #include <string.h>
 
 namespace {
-const int GX=64, GY=32, TRAIL=96;
+// The light-cycle arena is a half-resolution grid over the canvas: one cell is
+// a 2x2 block of pixels, which is what gives the trails their chunky look.
+const int GX=SCREEN_WIDTH/2, GY=SCREEN_HEIGHT/2;
+const int TRAIL=96;
 const int BIKE_RADIUS=3;
 const uint32_t STEP_MS=80;
-const int digitX[4]={14,38,74,98};
-const int digitY=20;
+
+// TRON draws seven-segment digits rather than font glyphs. TSEG is half a
+// segment, so a digit is 2*TSEG wide by 4*TSEG tall; sizing it from DIGIT_H
+// keeps it matching the digit row every other style draws.
+const int TSEG=DIGIT_H/4;
+const int TDIGIT_W=2*TSEG, TDIGIT_H=4*TSEG;
+const int TGAP=TSEG*3/2;          // between the digits of a pair
+const int TCOLON_GAP=TSEG*3;      // hours to minutes
+const int TROW_W=4*TDIGIT_W+2*TGAP+TCOLON_GAP;
+const int TMARGIN=(SCREEN_WIDTH-TROW_W)/2;
+const int digitX[4]={TMARGIN,
+                     TMARGIN+TDIGIT_W+TGAP,
+                     TMARGIN+2*TDIGIT_W+TGAP+TCOLON_GAP,
+                     TMARGIN+3*TDIGIT_W+2*TGAP+TCOLON_GAP};
+const int digitY=(SCREEN_HEIGHT-TDIGIT_H)/2;
+// Clear lane above the digits that builders use to cross the arena.
+const int TLANE_Y=digitY-TSEG;
 const int dx[4]={1,0,-1,0},dy[4]={0,1,0,-1};
 // a,b,c,d,e,f,g segments, with shared vertices for a continuous tracing route.
 const uint8_t masks[10]={0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F};
 const uint8_t ends[7][2]={{0,1},{1,3},{3,5},{4,5},{2,4},{0,2},{2,3}};
-const int vx[6]={0,12,0,12,0,12},vy[6]={0,0,12,12,24,24};
+const int vx[6]={0,TDIGIT_W,0,TDIGIT_W,0,TDIGIT_W},
+          vy[6]={0,0,TSEG*2,TSEG*2,TSEG*4,TSEG*4};
 struct Point { uint8_t x,y; };
 struct Bike {
   int x,y,px,py,dir,first,count;
@@ -43,9 +62,12 @@ uint16_t bikeColor(int n) { return SPRITE_COLOR(n==0?COL_TRON_BLUE:COL_TRON_ORAN
 bool blocked(int x,int y) {
   if(x<0 || x>=GX || y<0 || y>=GY) return true;
   int px=x*2,py=y*2;
-  for(int i=0;i<4;i++) if(px>=digitX[i]-2 && px<=digitX[i]+14 && py>=18 && py<=46) return true;
+  for(int i=0;i<4;i++)
+    if(px>=digitX[i]-2 && px<=digitX[i]+TDIGIT_W+2 &&
+       py>=digitY-2 && py<=digitY+TDIGIT_H+2) return true;
   // Keep the colon readable in the middle of the arena.
-  return px>=62 && px<=68 && py>=26 && py<=38;
+  return px>=SCREEN_CENTER_X-3 && px<=SCREEN_CENTER_X+3 &&
+         py>=digitY+TSEG && py<=digitY+TDIGIT_H-TSEG;
 }
 void clearTrail(int n) {
   Bike& b=bikes[n];
@@ -77,7 +99,7 @@ int clearance(int x,int y,int d) {
 void spawn(int n,uint32_t now) {
   Bike& b=bikes[n]; clearTrail(n);
   for(int attempt=0;attempt<128;attempt++) {
-    int x=2+random(60),y=random(2)?6:26;
+    int x=2+random(GX-4),y=random(2)?GY/5:GY*4/5;
     if(blocked(x,y) || occupied[y][x]) continue;
     b.x=b.px=x; b.y=b.py=y; b.dir=n==0?0:2;
     b.dead=false; b.stepped=now; addTrail(n); return;
@@ -141,7 +163,7 @@ void drawBike(int x,int y,int d,uint16_t c) {
   // Keep the whole silhouette on the panel; coordinates here are screen pixels.
   int halfWidth=settings.tronBikeStyle==1?1:2;
   int rx=ax?BIKE_RADIUS:halfWidth,ry=ay?BIKE_RADIUS:halfWidth;
-  x=constrain(x,rx,127-rx); y=constrain(y,ry,63-ry);
+  x=constrain(x,rx,SCREEN_WIDTH-1-rx); y=constrain(y,ry,SCREEN_HEIGHT-1-ry);
   for(int along=-BIKE_RADIUS;along<=BIKE_RADIUS;along++) {
     for(int across=-2;across<=2;across++) {
       uint8_t ink=sprite[across+2][along+BIKE_RADIUS];
@@ -199,17 +221,22 @@ void beginChange(uint32_t now) {
   approachCount=approachIndex=0;
   // From below the clock, first use a clear vertical passage. All subsequent
   // approach points lie above the digits, followed by entry into the active one.
-  if(buildY>46) {
-    const int lanes[5]={6,32,56,92,122};
+  if(buildY>digitY+TDIGIT_H+2) {
+    // Lanes sit in the gaps either side of, and between, the digit pairs.
+    const int lanes[5]={TMARGIN/2,
+                        digitX[1]-TGAP/2,
+                        SCREEN_CENTER_X,
+                        digitX[3]-TGAP/2,
+                        SCREEN_WIDTH-TMARGIN/2};
     int lane=0;
     for(int i=1;i<5;i++) if(fabsf(lanes[i]-buildX)<fabsf(lanes[lane]-buildX)) lane=i;
     approach[approachCount++]={(uint8_t)lanes[lane],(uint8_t)buildY};
-    approach[approachCount++]={(uint8_t)lanes[lane],14};
-  } else if(buildY>38 && buildX>=62 && buildX<=68) {
-    approach[approachCount++]={56,(uint8_t)buildY};
-    approach[approachCount++]={56,14};
-  } else approach[approachCount++]={(uint8_t)buildX,14};
-  approach[approachCount++]={(uint8_t)(digitX[activeDigit]+vx[start]),14};
+    approach[approachCount++]={(uint8_t)lanes[lane],(uint8_t)TLANE_Y};
+  } else if(buildY>digitY+TSEG*2 && buildX>=SCREEN_CENTER_X-6 && buildX<=SCREEN_CENTER_X+6) {
+    approach[approachCount++]={(uint8_t)(digitX[1]-TGAP/2),(uint8_t)buildY};
+    approach[approachCount++]={(uint8_t)(digitX[1]-TGAP/2),(uint8_t)TLANE_Y};
+  } else approach[approachCount++]={(uint8_t)buildX,(uint8_t)TLANE_Y};
+  approach[approachCount++]={(uint8_t)(digitX[activeDigit]+vx[start]),(uint8_t)TLANE_Y};
   approach[approachCount++]={(uint8_t)(digitX[activeDigit]+vx[start]),(uint8_t)(digitY+vy[start])};
   phase=ERASE; phaseStart=now;
 }
@@ -269,7 +296,10 @@ void drawDigits(uint32_t now) {
     int a=traceNodes[traceIndex-1];
     neonLine(digitX[activeDigit]+vx[a],digitY+vy[a],(int)buildX,(int)buildY,bikeColor(builder));
   }
-  if(shouldShowColon()) { display.fillRect(64,28,2,2,digitColor()); display.fillRect(64,36,2,2,digitColor()); }
+  if(shouldShowColon()) {
+    display.fillRect(SCREEN_CENTER_X-1,digitY+TSEG,2,2,digitColor());
+    display.fillRect(SCREEN_CENTER_X-1,digitY+TDIGIT_H-TSEG-2,2,2,digitColor());
+  }
 }
 }
 
@@ -277,7 +307,9 @@ void resetTronAnimation() { initialized=false; }
 void displayClockWithTron() {
   struct tm t;
   if(!getTimeWithTimeout(&t)) {
-    display.setTextSize(1); display.setTextColor(0xFFFF); display.setCursor(20,28); display.print("Syncing time..."); return;
+    display.setTextSize(1); display.setTextColor(0xFFFF);
+    display.setCursor(centerText1(15), SCREEN_CENTER_Y - TEXT1_H/2);
+    display.print("Syncing time..."); return;
   }
   int hour,minute; bool pm;
   formatTimeForDisplay(t.tm_hour,t.tm_min,hour,minute,pm);
@@ -292,11 +324,11 @@ void displayClockWithTron() {
   float dt=fminf((now-lastFrame)/1000.0f,0.05f); lastFrame=now;
   updateBike(0,now); updateBike(1,now); updateTrace(dt,now);
   // Sparse grid and a dim border keep the neon trails dominant.
-  for(int x=4;x<128;x+=8) for(int y=4;y<62;y+=8) display.drawPixel(x,y,0x0842);
-  display.drawRect(0,0,128,64,0x0945);
+  for(int x=4;x<SCREEN_WIDTH;x+=8) for(int y=4;y<SCREEN_HEIGHT-2;y+=8) display.drawPixel(x,y,0x0842);
+  display.drawRect(0,0,SCREEN_WIDTH,SCREEN_HEIGHT,0x0945);
   drawDuel(now);
   drawDigits(now);
   if(phase!=DUEL) drawBike((int)buildX,(int)buildY,buildDir,bikeColor(builder));
-  if(!settings.use24Hour) drawMeridiemIndicator(110,1,pm);
+  if(!settings.use24Hour) drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, 1, pm);
   if(!wifiConnected) drawNoWiFiIcon(0,0);
 }

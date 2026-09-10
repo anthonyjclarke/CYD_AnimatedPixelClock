@@ -1,5 +1,5 @@
 /*
- * AnimatedPixelClock - Matrix Rain Clock (clockStyle 12)
+ * CYD_AnimatedPixelClock - Matrix Rain Clock (clockStyle 12)
  *
  * Digital rain in the style of the classic film effect: columns of random
  * glyphs fall down the screen, each with a bright white-green head and a
@@ -286,8 +286,9 @@ void displayClockWithMatrixRain() {
   struct tm timeinfo;
   if (!getTimeWithTimeout(&timeinfo)) {
     display.setTextSize(1);
-    display.setCursor(20, 28);
-    display.print(ntpSynced ? "Time Error" : "Syncing time...");
+    const char *msg = ntpSynced ? "Time Error" : "Syncing time...";
+    display.setCursor(centerText1(strlen(msg)), SCREEN_CENTER_Y - TEXT1_H / 2);
+    display.print(msg);
     return;
   }
 
@@ -302,7 +303,7 @@ void displayClockWithMatrixRain() {
 
   // Time digits (size 3) on solid plates so they stay readable over the busy
   // rain; transparent mode skips every mask and lets the rain fall through.
-  display.setTextSize(3);
+  display.setTextSize(DIGIT_TEXT_SIZE);
   display.setTextColor(digitColor());
   char dch[5];
   dch[0] = '0' + displayed_hour / 10;
@@ -339,18 +340,18 @@ void displayClockWithMatrixRain() {
       case 2: sprintf(dateStr, "%04d-%02d-%02d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday); break;
       case 3: sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900); break;
     }
-    int dateX = (SCREEN_WIDTH - 60) / 2;
+    int dateX = centerText1(strlen(dateStr));
     if (!settings.matrixTransparent) {
-      display.fillRect(dateX - 1, 3, 62, 9, DISPLAY_BLACK);
+      display.fillRect(dateX - 1, 3, strlen(dateStr) * TEXT1_W + 2, TEXT1_H + 1, DISPLAY_BLACK);
     }
     display.setCursor(dateX, 4);
     display.print(dateStr);
   }
   if (!settings.use24Hour) {
     if (!settings.matrixTransparent) {
-      display.fillRect(109, 3, 14, 10, DISPLAY_BLACK);
+      display.fillRect(SCREEN_WIDTH - 2 * TEXT1_W - 3, 3, 2 * TEXT1_W + 2, TEXT1_H + 2, DISPLAY_BLACK);
     }
-    drawMeridiemIndicator(110, 4, displayed_is_pm);
+    drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, 4, displayed_is_pm);
   }
 
   if (!wifiConnected) drawNoWiFiIcon(0, 0);

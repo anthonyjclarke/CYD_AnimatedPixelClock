@@ -11,9 +11,8 @@ Yellow Display. Versioning restarts at `1.0.0` for the port; upstream had reache
 
 ## [Unreleased] 10-09-2026
 
-Port foundation and plumbing. **Both board targets build**; nothing has been
-flashed or verified on hardware, and the clock styles still lay themselves out
-for the original 128×64 canvas. See **Port status** in `README.md`.
+Complete port. **Both board targets build**; nothing has been flashed or
+verified on hardware. See **Port status** in `README.md`.
 
 ### Added
 
@@ -51,6 +50,10 @@ for the original 128×64 canvas. See **Port status** in `README.md`.
   the RGB LED, the controls say so rather than silently doing nothing.
 - `/api/status` now reports `rowsPushed` and `canvasRows`, making the display
   layer's change detection measurable on real content.
+- `src/clocks/clock_layout.h` — canvas-derived layout metrics. Every style
+  positions itself from these instead of the literals upstream tuned for a
+  128×64 panel, so a new board is a new `[env:]` block rather than another pass
+  over fourteen files.
 
 ### Changed
 
@@ -67,6 +70,21 @@ for the original 128×64 canvas. See **Port status** in `README.md`.
   that mode does not exist here, so a clock is always what is on screen.
 - `/api/mode/clock` and `/api/mode/auto` are retained as no-ops for Home
   Assistant automations; `/api/mode/ambient` and `/api/mode/viz` are gone.
+- **All 14 clock styles re-laid-out** for the larger canvas. Digit rows now hold
+  upstream's ~70%-of-width proportion (75%) at whatever size the board needs;
+  sprites keep their logical size, so they stay the same physical size on both
+  panels. The vertical composition is anchored on the character band staying one
+  sprite tall, because Mario bounces a digit from directly underneath it.
+- Tetris' well grew from 5 rows to 11 (13 → 25 in small-clock mode). Its row
+  mask had to widen from `uint32_t` to `uint64_t`: a 4 px cell over a 160 px
+  canvas is 40 columns, and 60 on the 4.0″, both past the 32 bits upstream had.
+  The full-row constant and clear mask widened with it.
+- Snake's flow-field arena grew from 32×16 cells to 40×30 (60×40 on the 4.0″).
+- Pac-Man, TRON and Bomberman draw their own digits — a pellet grid, seven
+  segments and bricks respectively — so each derives its own row geometry
+  rather than reusing `DIGIT_X`.
+- Static RAM rose to 21.7% / 24.7% (from 20.0% / 20.1%), almost entirely the
+  larger Snake flow-field and Tetris well arrays.
 - Backlight PWM (`ledc`, GPIO 21 on the 2.8″, GPIO 27 on the 4.0″) now backs
   `setBrightness8()`, so upstream's scheduled dimming and nightly-off windows
   work unmodified against LCD hardware.

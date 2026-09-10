@@ -1,5 +1,5 @@
 /*
- * AnimatedPixelClock - Asteroids Clock (clockStyle 10)
+ * CYD_AnimatedPixelClock - Asteroids Clock (clockStyle 10)
  *
  * A vector-style wireframe homage to Asteroids. A triangular ship drifts
  * around the screen with real inertia (thrust bursts, slow turns, screen
@@ -80,7 +80,7 @@ static const int AST_DIGIT_IDX[4] = {0, 1, 3, 4};  // digit slots (skip colon)
 
 // Ship
 static AstPhase ast_phase = AST_IDLE;
-static float ast_ship_x = 30.0f, ast_ship_y = 50.0f;
+static float ast_ship_x = SCREEN_WIDTH * 0.2f, ast_ship_y = SCREEN_HEIGHT * 0.75f;
 static float ast_ship_vx = 0.0f, ast_ship_vy = 0.0f;
 static float ast_ship_heading = 0.0f;     // radians, 0 = +X
 static bool ast_thrusting = false;
@@ -165,14 +165,14 @@ static void astSpawnRock() {
     r.big = true;
     int edge = random(0, 4);
     switch (edge) {
-      case 0:  r.x = -8;                 r.y = astRandf(8, 56);  break;
-      case 1:  r.x = SCREEN_WIDTH + 8;   r.y = astRandf(8, 56);  break;
+      case 0:  r.x = -8;                 r.y = astRandf(8, SCREEN_HEIGHT - 8);  break;
+      case 1:  r.x = SCREEN_WIDTH + 8;   r.y = astRandf(8, SCREEN_HEIGHT - 8);  break;
       case 2:  r.x = astRandf(8, 120);   r.y = -8;               break;
       default: r.x = astRandf(8, 120);   r.y = SCREEN_HEIGHT + 8; break;
     }
     float speed = 10.0f * (settings.asteroidsRockSpeed / 10.0f);
     // Head loosely toward the screen centre so the rock actually enters view
-    float ang = atan2f(32.0f - r.y, 64.0f - r.x) + astRandf(-0.6f, 0.6f);
+    float ang = atan2f(SCREEN_CENTER_Y - r.y, SCREEN_CENTER_X - r.x) + astRandf(-0.6f, 0.6f);
     r.vx = cosf(ang) * speed;
     r.vy = sinf(ang) * speed;
     r.angle = astRandf(0, TWO_PI);
@@ -301,7 +301,7 @@ static void astRevealAndAdvance() {
 void resetAsteroidsAnimation() {
   ast_phase = AST_IDLE;
   ast_ship_x = 30.0f;
-  ast_ship_y = 50.0f;
+  ast_ship_y = SCREEN_HEIGHT * 0.75f;
   ast_ship_vx = 8.0f;
   ast_ship_vy = -3.0f;
   ast_ship_heading = -0.4f;
@@ -361,7 +361,7 @@ static void astAvoidPlates(float dt) {
   }
   if (settings.asteroidsShowDate) {
     // Date plate sits top-centre; push the ship down and out of it
-    if (ast_ship_y < 16.0f && ast_ship_x > 28.0f && ast_ship_x < 100.0f) {
+    if (ast_ship_y < DIGITS_TOP && ast_ship_x > DIGITS_LEFT && ast_ship_x < DIGITS_RIGHT) {
       ast_ship_vy += 90.0f * dt;
     }
   }
@@ -634,8 +634,9 @@ void displayClockWithAsteroids() {
   struct tm timeinfo;
   if (!getTimeWithTimeout(&timeinfo)) {
     display.setTextSize(1);
-    display.setCursor(20, 28);
-    display.print(ntpSynced ? "Time Error" : "Syncing time...");
+    const char *msg = ntpSynced ? "Time Error" : "Syncing time...";
+    display.setCursor(centerText1(strlen(msg)), SCREEN_CENTER_Y - TEXT1_H / 2);
+    display.print(msg);
     return;
   }
 
@@ -657,7 +658,7 @@ void displayClockWithAsteroids() {
   // Time digits (size 3). Mask each visible digit's box so the space layer
   // reads as flying *behind* the time, then print the glyph. The digit
   // being shattered stays hidden until its debris clears.
-  display.setTextSize(3);
+  display.setTextSize(DIGIT_TEXT_SIZE);
   display.setTextColor(digitColor());
   char dch[5];
   dch[0] = '0' + displayed_hour / 10;
@@ -703,14 +704,14 @@ void displayClockWithAsteroids() {
       case 2: sprintf(dateStr, "%04d-%02d-%02d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday); break;
       case 3: sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900); break;
     }
-    int dateX = (SCREEN_WIDTH - 60) / 2;
+    int dateX = centerText1(strlen(dateStr));
     if (!settings.asteroidsTransparent) {
-      display.fillRect(dateX - 1, 3, 62, 9, DISPLAY_BLACK);
+      display.fillRect(dateX - 1, 3, strlen(dateStr) * TEXT1_W + 2, TEXT1_H + 1, DISPLAY_BLACK);
     }
     display.setCursor(dateX, 4);
     display.print(dateStr);
   }
-  drawMeridiemIndicator(110, 4, displayed_is_pm);
+  drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, 4, displayed_is_pm);
 
   if (!wifiConnected) drawNoWiFiIcon(0, 0);
 }

@@ -1,8 +1,8 @@
 # CLAUDE.md — CYD_AnimatedPixelClock
 
 Port of **AnimatedPixelClock** (Keralots, MIT, upstream v2.3.0) from ESP32-S3 +
-2× 64×64 HUB75 panels to the ESP32 Cheap Yellow Display. Port version 1.0.0,
-in progress — see *Port status* in `README.md`.
+2× 64×64 HUB75 panels to the ESP32 Cheap Yellow Display. Port version 1.0.0.
+Feature-complete and building; never yet run on hardware.
 
 ## Target hardware
 
@@ -28,6 +28,25 @@ square block and pushes it. Canvas × scale equals the panel exactly:
   `waitForScanCompletion`) so ported styles need no display edits.
   `waitForScanCompletion()` is an intentional no-op — TFT pushes are synchronous.
 
+## Layout — `src/clocks/clock_layout.h`
+
+Every style positions itself from these canvas-derived metrics, never from
+literal coordinates. Two rules split the metrics:
+
+- **Text scales with the canvas.** `DIGIT_TEXT_SIZE` holds the digit row at ~75%
+  of the width on both boards (upstream's five digits filled 70% of 128 px).
+- **Sprites do not.** Both boards render at ×2, so a logical pixel is the same
+  physical size on each; fixed-size sprite art therefore stays physically
+  identical and the larger panel just shows more room. Scaling sprites would
+  mean redrawing all of them.
+
+`CHAR_BAND` is the load-bearing constant: Mario bounces a digit by putting his
+head against its underside, so the gap between the digit row and `GROUND_Y` must
+stay exactly one sprite tall. The rest of the vertical composition flows from it.
+
+Pac-Man (pellet grid), TRON (seven segments) and Bomberman (bricks) draw their
+own digits and derive their own row geometry rather than using `DIGIT_X`.
+
 ## Never do these
 
 - **Never push the whole frame unconditionally.** `display()` hashes each canvas
@@ -44,6 +63,9 @@ square block and pushes it. Canvas × scale equals the panel exactly:
 - **Never let the canvas rotate.** `GFXcanvas16` has its own `rotation`; it must
   stay 0 or the buffer layout stops being row-major and row hashing breaks.
   Landscape comes from `tft.setRotation(TFT_ROTATION)` on the panel instead.
+- **Never narrow Tetris' well row back to `uint32_t`.** A 4 px cell over a
+  160 px canvas is 40 columns, 60 on the 4.0″ — both past 32 bits. `TetRow` is
+  `uint64_t`, and `TET_FULLROW` and `tet_clear_mask` widened with it.
 - **Never restore `.github/FUNDING.yml`** from `archive/` — those sponsorship
   links are the upstream author's.
 
@@ -64,9 +86,8 @@ Each is a considered exception, not an oversight:
 
 ## Persistence
 
-Settings live in NVS via `Preferences`. Touch calibration is stored there too and
-must never be hardcoded; run the on-screen calibration when the namespace is
-empty. The 384 KB `spiffs` partition is currently unused and retained only so a
+Settings live in NVS namespace `pixelclock`; touch calibration in `cydtouch`.
+Neither may be hardcoded. The 384 KB `spiffs` partition is unused, retained so a
 filesystem can be added later without repartitioning and losing saved settings.
 
 ## Archive
@@ -76,6 +97,3 @@ audio visualizer, ambient screensavers and the `.pca` player, plus all HUB75
 hardware and release material. Nothing there is compiled. `archive/README.md`
 says what each folder is and what restoring it would take. A pristine upstream
 copy also sits outside the repo at `PlatformIO/Projects/AnimatedPixelClock`.
-
-`smoke/` and the `smoke-28` / `smoke-40` envs are a temporary display-layer
-compile check — delete both once the full firmware builds.

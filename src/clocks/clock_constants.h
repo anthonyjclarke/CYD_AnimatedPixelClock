@@ -8,8 +8,10 @@
 #ifndef CLOCK_CONSTANTS_H
 #define CLOCK_CONSTANTS_H
 
+#include "clock_layout.h"
+
 // ========== Mario Clock Constants ==========
-// Starting position (off-screen left)
+// Starting position (off-screen left, one sprite clear of the edge)
 #define MARIO_START_X -15
 
 // Walking speed (pixels per frame at MARIO_ANIM_SPEED)
@@ -30,9 +32,9 @@
 #define SPACE_EXPLOSION_FRAMES 16
 
 // ========== Digit Positioning ==========
-// Standard digit X positions (18px spacing, starting at 19)
-#define DIGIT_SPACING_PX 18
-#define DIGIT_START_X 19
+// Derived from the canvas - see clock_layout.h.
+constexpr int DIGIT_SPACING_PX = DIGIT_W;
+constexpr int DIGIT_START_X = TIME_X;
 
 // ========== Common Values ==========
 // Movement threshold (considered "at target" when within this distance)
@@ -41,10 +43,9 @@
 // Walk direction proximity threshold (within 3 pixels = at target)
 #define MARIO_TARGET_PROXIMITY 3
 
-// Date display width calculation (for centering)
-#define DATE_DISPLAY_WIDTH 60
+// Date display width calculation (for centering): 10 chars at size 1.
+constexpr int DATE_DISPLAY_WIDTH = 10 * TEXT1_W;
 
-// Screen center X position
-#define SCREEN_CENTER_X 64
+// SCREEN_CENTER_X comes from clock_layout.h.
 
 #endif // CLOCK_CONSTANTS_H

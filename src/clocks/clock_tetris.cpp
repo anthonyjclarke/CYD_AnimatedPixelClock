@@ -1,5 +1,5 @@
 /*
- * AnimatedPixelClock - Tetris Clock (clockStyle 8)
+ * CYD_AnimatedPixelClock - Tetris Clock (clockStyle 8)
  *
  * Digits are drawn as a 5x7 block grid, sat low on the screen so the rebuild
  * animation above them is easy to see. The idle look is calm: static block
@@ -25,20 +25,22 @@
 #include "clock_globals.h"
 
 // ========== Layout / tuning ==========
-#define TET_TIME_Y_LOW 28            // date on top: digits sit low, room below
-#define TET_TIME_Y_CENTER 22         // date bottom/off: digits vertically centred
-#define TET_PITCH 3                  // cell pitch (block + 1px gap)
+// One glyph pixel of the digit row, so block digits match the text styles.
+#define TET_PITCH DIGIT_TEXT_SIZE
 #define TET_GRID_W 5
 #define TET_GRID_H 7
+#define TET_DIGIT_PX_H (TET_GRID_H * TET_PITCH)
+#define TET_TIME_Y_LOW TIME_Y_BASE                              // date on top
+#define TET_TIME_Y_CENTER ((SCREEN_HEIGHT - TET_DIGIT_PX_H) / 2)  // date off/bottom
 #define TET_ANIM_SPEED 16            // ms; matches the 60 Hz render frame so every
                                      // rendered frame advances motion (no judder).
                                      // Per-tick motion constants are scaled to this.
 #define TET_TRIGGER_SECOND 56
-#define TET_START_FALL 26            // how far above a slab starts its drop
+#define TET_START_FALL (TET_DIGIT_PX_H + 5)  // how far above a slab starts its drop
 #define TET_MAX_FRAG 36
 #define TET_MAX_DOTS (TET_GRID_W * TET_GRID_H)
 #define TET_DATE_Y_TOP 4
-#define TET_DATE_Y_BOTTOM 56
+#define TET_DATE_Y_BOTTOM (SCREEN_HEIGHT - TEXT1_H)
 #define TET_SLIP_PCT 8               // Smooth Play: % of drops allowed to leave a
                                      // hole (a "human slip") instead of avoiding it
 
@@ -87,16 +89,25 @@ static TetFrag tet_frags[TET_MAX_FRAG];
 // Small corner clock mode - a tall 13-row well filling nearly the whole panel,
 // so the stack piles much higher before it resets. tetWellRows()/tetWellTop()
 // return the live geometry; the arrays are always sized for the larger one.
-#define TET_WELL_COLS 32             // 128 / 4 (fixed: full-row mask is 32-bit)
-#define TET_WELL_ROWS_NORMAL 5       // ~20px strip under the centred clock
-#define TET_WELL_ROWS_MAX 13         // small-clock well: y=12..63, 4px cells
 #define TET_WELL_CELL 4
-#define TET_FULLROW 0xFFFFFFFFu
-#define TET_WELL_TOP_NORMAL (TET_TIME_Y_CENTER + TET_GRID_H * TET_PITCH + 1)  // 44
-#define TET_WELL_TOP_SMALL 12        // just below the top corner-clock band
+// 40 columns at 160 wide, 60 at 240 - both past the 32 a uint32_t row mask
+// could hold, so the well rows are uint64_t here where upstream used uint32_t.
+#define TET_WELL_COLS (SCREEN_WIDTH / TET_WELL_CELL)
+#define TET_FULLROW ((TetRow)((TET_WELL_COLS >= 64) ? ~(TetRow)0 \
+                                                   : (((TetRow)1 << TET_WELL_COLS) - 1)))
+#define TET_WELL_TOP_NORMAL (TET_TIME_Y_CENTER + TET_DIGIT_PX_H + 1)
+// Corner-clock band, drawn at TET_SMALL_TEXT below.
+#define TET_SMALL_TEXT 2
+#define TET_SMALL_W (5 * TEXT1_W * TET_SMALL_TEXT + 4)
+#define TET_SMALL_H (TEXT1_H * TET_SMALL_TEXT + 2)
+#define TET_WELL_TOP_SMALL (TET_SMALL_H + 2)
+#define TET_WELL_ROWS_NORMAL ((SCREEN_HEIGHT - TET_WELL_TOP_NORMAL) / TET_WELL_CELL)
+#define TET_WELL_ROWS_MAX ((SCREEN_HEIGHT - TET_WELL_TOP_SMALL) / TET_WELL_CELL)
 
 enum TetGamePhase { TG_DELAY, TG_MOVING, TG_CLEARING };
-static uint32_t tet_well[TET_WELL_ROWS_MAX];  // bit c set = filled; row 0 = top of well
+// Wide enough for TET_WELL_COLS on either board (40 or 60 columns).
+typedef uint64_t TetRow;
+static TetRow tet_well[TET_WELL_ROWS_MAX];  // bit c set = filled; row 0 = top of well
 // Piece index (0-6, I..L) that filled each settled cell - drives per-piece color.
 // Only meaningful where the matching tet_well bit is set.
 static uint8_t tet_well_col[TET_WELL_ROWS_MAX][TET_WELL_COLS];
@@ -113,7 +124,7 @@ static int tet_spin_left = 0;     // remaining tumbles (randomized, max 4)
 static float tet_pc_curCol = 0;   // animated column (cells)
 static float tet_pc_py = 0;       // animated top Y (screen pixels; falls from top)
 static unsigned long tet_game_timer = 0;
-static uint16_t tet_clear_mask = 0;       // which well rows are full and flashing (up to TET_WELL_ROWS_MAX bits)
+static uint64_t tet_clear_mask = 0;       // one bit per full, flashing well row
 static int tet_clear_flash = 0;
 
 static int last_minute_tetris = -1;
@@ -255,7 +266,7 @@ static void tetGameReset() {
 
 static int tetColTop(int c) {  // first filled row in column c, or ROWS if empty
   int rows = tetWellRows();
-  for (int r = 0; r < rows; r++) if (tet_well[r] & (1u << c)) return r;
+  for (int r = 0; r < rows; r++) if (tet_well[r] & ((TetRow)1 << c)) return r;
   return rows;
 }
 
@@ -290,9 +301,9 @@ static int tetDropOy(int rot, int leftCol) {
 static int tetScorePlacement(int rot, int leftCol, int oy, bool smooth, int *outHoles) {
   const TetRot &p = TET_ROTS[rot];
   int rows = tetWellRows();
-  uint32_t tmp[TET_WELL_ROWS_MAX];
+  TetRow tmp[TET_WELL_ROWS_MAX];
   for (int r = 0; r < rows; r++) tmp[r] = tet_well[r];
-  for (int k = 0; k < 4; k++) tmp[oy + p.cy[k]] |= (1u << (leftCol + p.cx[k]));
+  for (int k = 0; k < 4; k++) tmp[oy + p.cy[k]] |= ((TetRow)1 << (leftCol + p.cx[k]));
 
   int lines = 0;
   for (int r = 0; r < rows; r++) if (tmp[r] == TET_FULLROW) lines++;
@@ -300,13 +311,13 @@ static int tetScorePlacement(int rot, int leftCol, int oy, bool smooth, int *out
   int aggH = 0, holes = 0, maxH = 0, bumps = 0, prevH = -1;
   for (int c = 0; c < TET_WELL_COLS; c++) {
     int top = rows;
-    for (int r = 0; r < rows; r++) if (tmp[r] & (1u << c)) { top = r; break; }
+    for (int r = 0; r < rows; r++) if (tmp[r] & ((TetRow)1 << c)) { top = r; break; }
     int h = rows - top;
     aggH += h;
     if (h > maxH) maxH = h;
     if (prevH >= 0) bumps += abs(h - prevH);
     prevH = h;
-    for (int r = top + 1; r < rows; r++) if (!(tmp[r] & (1u << c))) holes++;
+    for (int r = top + 1; r < rows; r++) if (!(tmp[r] & ((TetRow)1 << c))) holes++;
   }
   if (outHoles) *outHoles = holes;
   if (smooth) {
@@ -350,8 +361,8 @@ static bool tetGamePickPiece() {
   int curHoles = 0;
   for (int c = 0; c < TET_WELL_COLS; c++) {
     int top = rows;
-    for (int r = 0; r < rows; r++) if (tet_well[r] & (1u << c)) { top = r; break; }
-    for (int r = top + 1; r < rows; r++) if (!(tet_well[r] & (1u << c))) curHoles++;
+    for (int r = 0; r < rows; r++) if (tet_well[r] & ((TetRow)1 << c)) { top = r; break; }
+    for (int r = top + 1; r < rows; r++) if (!(tet_well[r] & ((TetRow)1 << c))) curHoles++;
   }
 
   int bestScore = -1000000, bestRot = -1, bestCol = 0, bestOy = 0, ties = 0;
@@ -466,12 +477,12 @@ static void tetGameUpdate() {
     for (int k = 0; k < 4; k++) {
       int rr = tet_pc_destOy + p.cy[k];
       int cc = tet_pc_destCol + p.cx[k];
-      tet_well[rr] |= (1u << cc);
+      tet_well[rr] |= ((TetRow)1 << cc);
       tet_well_col[rr][cc] = tet_pc_piece;  // remember which piece for its color
     }
     tet_clear_mask = 0;
     for (int r = 0; r < tetWellRows(); r++)
-      if (tet_well[r] == TET_FULLROW) tet_clear_mask |= (1 << r);
+      if (tet_well[r] == TET_FULLROW) tet_clear_mask |= ((uint64_t)1 << r);
     if (tet_clear_mask) { tet_game_phase = TG_CLEARING; tet_clear_flash = 15; }
     else { tet_game_phase = TG_DELAY; tet_game_timer = millis() + 450; }
   }
@@ -677,11 +688,11 @@ static void tetDrawSmallClock(struct tm *timeinfo) {
   char timeStr[6];
   sprintf(timeStr, "%02d%c%02d", displayHour, shouldShowColon() ? ':' : ' ', displayMin);
 
-  int bx = (settings.tetrisSmallClockPos == 0) ? 0 : (SCREEN_WIDTH - 34);
-  display.fillRect(bx, 0, 34, 10, DISPLAY_BLACK);
-  display.setTextSize(1);
+  int bx = (settings.tetrisSmallClockPos == 0) ? 0 : (SCREEN_WIDTH - TET_SMALL_W);
+  display.fillRect(bx, 0, TET_SMALL_W, TET_SMALL_H, DISPLAY_BLACK);
+  display.setTextSize(TET_SMALL_TEXT);
   display.setTextColor(digitColor());
-  display.setCursor(bx + 3, 1);
+  display.setCursor(bx + 2, 1);
   display.print(timeStr);
   display.setTextColor(DISPLAY_WHITE);   // restore default text color
 }
@@ -691,10 +702,10 @@ static void tetGameDraw() {
   // Settled stack (full rows blink while clearing)
   for (int r = 0; r < rows; r++) {
     if ((tet_clear_mask & (1 << r)) && (tet_clear_flash / 5) % 2 == 0) continue;
-    uint32_t row = tet_well[r];
+    TetRow row = tet_well[r];
     if (!row) continue;
     for (int c = 0; c < TET_WELL_COLS; c++)
-      if (row & (1u << c))
+      if (row & ((TetRow)1 << c))
         display.fillRect(c * TET_WELL_CELL, wellTop + r * TET_WELL_CELL, 3, 3,
                          SPRITE_COLOR(COL_TET_I + tet_well_col[r][c]));
   }
@@ -745,8 +756,9 @@ void displayClockWithTetris() {
   struct tm timeinfo;
   if (!getTimeWithTimeout(&timeinfo)) {
     display.setTextSize(1);
-    display.setCursor(20, 28);
-    display.print(ntpSynced ? "Time Error" : "Syncing time...");
+    const char *msg = ntpSynced ? "Time Error" : "Syncing time...";
+    display.setCursor(centerText1(strlen(msg)), SCREEN_CENTER_Y - TEXT1_H / 2);
+    display.print(msg);
     return;
   }
 
@@ -761,7 +773,7 @@ void displayClockWithTetris() {
     tetGameDraw();
     tetDrawSmallClock(&timeinfo);
     if (!wifiConnected) {
-      int ix = (settings.tetrisSmallClockPos == 0) ? (SCREEN_WIDTH - 10) : 0;
+      int ix = (settings.tetrisSmallClockPos == 0) ? (SCREEN_WIDTH - 2 * TEXT1_W) : 0;
       drawNoWiFiIcon(ix, 0);
     }
     return;
@@ -780,7 +792,7 @@ void displayClockWithTetris() {
     display.setCursor((SCREEN_WIDTH - 60) / 2, tetDateY());
     display.print(dateStr);
   }
-  drawMeridiemIndicator(110, 4, displayed_is_pm);
+  drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, 4, displayed_is_pm);
 
   // Digits
   int bs = tetBlockSize();

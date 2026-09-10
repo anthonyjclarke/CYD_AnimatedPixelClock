@@ -1,5 +1,5 @@
 /*
- * AnimatedPixelClock - Pac-Man Clock Implementation
+ * CYD_AnimatedPixelClock - Pac-Man Clock Implementation
  *
  * Pac-Man clock style with pellet-based digit display and eating animations.
  */
@@ -11,7 +11,22 @@
 
 // ========== Pac-Man Digit X positions ==========
 // Pac-Man clock uses different spacing (wider gaps for pellet layout)
-static const int DIGIT_X_PACMAN[5] = {1, 30, 56, 74, 103};
+// Pellet digits are wider than the text ones, so this style spreads them over
+// almost the whole canvas rather than reusing DIGIT_X. Four digit cells, a
+// wider gap in the middle for the colon, centred with an even margin.
+constexpr int PM_DIGIT_W = (DIGIT_GRID_W - 1) * PELLET_SPACING;
+constexpr int PM_GAP = 2 * PELLET_SPACING;          // between the digits of a pair
+constexpr int PM_COLON_GAP = 3 * PELLET_SPACING;    // hours to minutes
+constexpr int PM_ROW_W = 4 * PM_DIGIT_W + 2 * PM_GAP + PM_COLON_GAP;
+constexpr int PM_MARGIN = (SCREEN_WIDTH - PM_ROW_W) / 2;
+static const int DIGIT_X_PACMAN[5] = {
+    PM_MARGIN,
+    PM_MARGIN + PM_DIGIT_W + PM_GAP,
+    // Index 2 is the colon slot - no pellets are drawn there, it just needs to
+    // sit between the hour and minute pairs.
+    PM_MARGIN + PM_DIGIT_W + PM_GAP + PM_DIGIT_W + PM_COLON_GAP / 2,
+    PM_MARGIN + 2 * PM_DIGIT_W + PM_GAP + PM_COLON_GAP,
+    PM_MARGIN + 3 * PM_DIGIT_W + PM_GAP + PM_COLON_GAP + PM_GAP};
 
 // ========== Digit Patterns for Pac-Man Pellet Display (5x7 grid) ==========
 // Bitmap patterns for digits 0-9 (5x7 grid, 1 = pellet present, 0 = no pellet)
@@ -166,12 +181,9 @@ void displayClockWithPacman() {
   struct tm timeinfo;
   if (!getTimeWithTimeout(&timeinfo)) {
     display.setTextSize(1);
-    display.setCursor(20, 28);
-    if (!ntpSynced) {
-      display.print("Syncing time...");
-    } else {
-      display.print("Time Error");
-    }
+    const char *msg = ntpSynced ? "Time Error" : "Syncing time...";
+    display.setCursor(centerText1(strlen(msg)), SCREEN_CENTER_Y - TEXT1_H / 2);
+    display.print(msg);
     return;
   }
 
@@ -198,9 +210,9 @@ void displayClockWithPacman() {
     case 3: sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday,
                     timeinfo.tm_mon + 1, timeinfo.tm_year + 1900); break;
   }
-  display.setCursor((SCREEN_WIDTH - 60) / 2, 4);
+  display.setCursor(centerText1(strlen(dateStr)), 4);
   display.print(dateStr);
-  drawMeridiemIndicator(110, 4, displayed_is_pm);
+  drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, 4, displayed_is_pm);
 
   // Draw time digits as pellets
   uint8_t digitValues[5];
@@ -218,9 +230,9 @@ void displayClockWithPacman() {
         // H2 ends at: DIGIT_X_PACMAN[1] + 4 * PELLET_SPACING
         // M1 starts at: DIGIT_X_PACMAN[3]
         // Center the colon in the gap between them
-        int colon_x = (DIGIT_X_PACMAN[1] + 4 * PELLET_SPACING + DIGIT_X_PACMAN[3]) / 2;
-        display.fillCircle(colon_x, TIME_Y_PACMAN + 8, PELLET_SIZE, digitColor());   // Top dot (lowered)
-        display.fillCircle(colon_x, TIME_Y_PACMAN + 18, PELLET_SIZE, digitColor());  // Bottom dot (lowered)
+        int colon_x = (DIGIT_X_PACMAN[1] + PM_DIGIT_W + DIGIT_X_PACMAN[3]) / 2;
+        display.fillCircle(colon_x, TIME_Y_PACMAN + 2 * PELLET_SPACING, PELLET_SIZE, digitColor());
+        display.fillCircle(colon_x, TIME_Y_PACMAN + 4 * PELLET_SPACING, PELLET_SIZE, digitColor());
       }
       continue;
     }

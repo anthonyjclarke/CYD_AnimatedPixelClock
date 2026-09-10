@@ -1,5 +1,5 @@
 /*
- * AnimatedPixelClock - Mario Clock Implementation
+ * CYD_AnimatedPixelClock - Mario Clock Implementation
  *
  * Mario clock style with animated Mario character that jumps to change digits.
  */
@@ -80,7 +80,7 @@ static float shellSlideSpeed = 0;
 
 // ========== Draw Time With Bounce Effect ==========
 void drawTimeWithBounce() {
-  display.setTextSize(3);
+  display.setTextSize(DIGIT_TEXT_SIZE);
   display.setTextColor(digitColor());
 
   char digits[5];
@@ -103,12 +103,9 @@ void displayClockWithMario() {
   struct tm timeinfo;
   if(!getTimeWithTimeout(&timeinfo)) {
     display.setTextSize(1);
-    display.setCursor(20, 28);
-    if (!ntpSynced) {
-      display.print("Syncing time...");
-    } else {
-      display.print("Time Error");
-    }
+    const char *msg = ntpSynced ? "Time Error" : "Syncing time...";
+    display.setCursor(centerText1(strlen(msg)), SCREEN_CENTER_Y - TEXT1_H / 2);
+    display.print(msg);
     return;
   }
 
@@ -137,10 +134,9 @@ void displayClockWithMario() {
       break;
   }
 
-  int date_x = (SCREEN_WIDTH - DATE_DISPLAY_WIDTH) / 2;
-  display.setCursor(date_x, 4);
+  display.setCursor(centerText1(strlen(dateStr)), 4);
   display.print(dateStr);
-  drawMeridiemIndicator(110, 4, displayed_is_pm);
+  drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, 4, displayed_is_pm);
 
   // SMB1-style coin counter (top-left, only when encounters enabled)
   if (settings.marioIdleEncounters) {
@@ -470,7 +466,7 @@ static float getEnemyWalkSpeed(EnemyType type) {
 
 // Calculated approach speed so Mario and enemy meet at desired point
 static float encounterEnemyApproachSpeed = 1.0f;
-static float encounterMeetX = 64.0f;
+static float encounterMeetX = SCREEN_CENTER_X;
 
 // Encounter speed multiplier based on setting
 static float getEncounterSpeedMult() {
@@ -622,7 +618,7 @@ void startIdleEncounter() {
     // 8% — multi-enemy (two Goombas)
     encounterVariation = ENCOUNTER_MULTI_ENEMY;
 
-    float meetX = random(20, 85);
+    float meetX = random(20, SCREEN_WIDTH - 75);
     float enemyStartX = SCREEN_WIDTH + random(5, 15);
     calcApproachSpeed(meetX, enemyStartX);
 
@@ -675,7 +671,7 @@ void startIdleEncounter() {
     // 42% — normal single enemy encounter (includes Koopa)
     encounterVariation = ENCOUNTER_MARIO_VS_ENEMY;
 
-    float meetX = random(20, 100);
+    float meetX = random(20, SCREEN_WIDTH - 60);
     float enemyStartX = SCREEN_WIDTH + random(5, 15);
     calcApproachSpeed(meetX, enemyStartX);
 

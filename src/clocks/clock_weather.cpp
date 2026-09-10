@@ -1,5 +1,5 @@
 /*
- * AnimatedPixelClock - Weather Clock (style 14)
+ * CYD_AnimatedPixelClock - Weather Clock (style 14)
  *
  * Time on top, animated condition icon + big temperature in the middle,
  * details row (min/max + humidity alternating with sunrise/sunset) at the
@@ -12,12 +12,18 @@
 #include "../display/display.h"
 #include "../weather/weather.h"
 
-// Layout
-#define WTIME_Y 2
-#define WICON_X 10
-#define WICON_Y 24
-#define WICON_SIZE 24
-#define WDETAIL_Y 55
+// Layout. This style composes four bands - time, condition icon, temperature
+// and an alternating details line - rather than reusing the shared digit row,
+// so it derives its own metrics from the canvas.
+#define WTIME_SIZE (DIGIT_TEXT_SIZE - 1)   // secondary clock: a step down from the hero row
+#define WTIME_W (5 * TEXT1_W * WTIME_SIZE)
+#define WTIME_H (TEXT1_H * WTIME_SIZE)
+#define WTIME_Y 4
+#define WICON_SIZE 24                      // icon art is fixed-size pixel work
+#define WICON_X (SCREEN_WIDTH / 16)
+#define WICON_Y (WTIME_Y + WTIME_H + 10)
+#define WTEMP_X (WICON_X + WICON_SIZE + 8)
+#define WDETAIL_Y (SCREEN_HEIGHT - TEXT1_H - 4)
 #define WDETAIL_SWAP_MS 5000
 
 static void drawCloudShape(int cx, int cy, uint16_t color) {
@@ -121,7 +127,7 @@ static void drawTemperature(int x, int y, float tempC) {
   char buf[8];
   snprintf(buf, sizeof(buf), "%d", (int)roundf(t));
 
-  display.setTextSize(3);
+  display.setTextSize(DIGIT_TEXT_SIZE);
   display.setTextColor(SPRITE_COLOR(COL_WEATHER_TEMP));
   display.setCursor(x, y);
   display.print(buf);
@@ -148,16 +154,17 @@ void displayClockWithWeather() {
     char separator = shouldShowColon() ? ':' : ' ';
     sprintf(timeStr, "%02d%c%02d", displayHour, separator, displayMin);
 
-    display.setTextSize(2);
-    display.setCursor((SCREEN_WIDTH - 5 * 12) / 2, WTIME_Y);
+    display.setTextSize(WTIME_SIZE);
+    display.setCursor((SCREEN_WIDTH - WTIME_W) / 2, WTIME_Y);
     display.setTextColor(digitColor());
     display.print(timeStr);
     display.setTextColor(DISPLAY_WHITE);
-    drawMeridiemIndicator(112, WTIME_Y + 4, isPM);
+    drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, WTIME_Y + 4, isPM);
   } else {
     display.setTextSize(1);
-    display.setCursor(20, WTIME_Y + 4);
-    display.print(!ntpSynced ? "Syncing time..." : "Time Error");
+    const char *msg = ntpSynced ? "Time Error" : "Syncing time...";
+    display.setCursor(centerText1(strlen(msg)), WTIME_Y + 4);
+    display.print(msg);
   }
 
   // --- Weather block ---
@@ -165,20 +172,23 @@ void displayClockWithWeather() {
   display.setTextSize(1);
 
   if (!settings.weatherEnabled || !weatherConfigured()) {
-    display.setCursor(22, 34);
-    display.print("Weather not set up");
-    display.setCursor(13, 46);
-    display.print("Enable it in the web UI");
+    const char *l1 = "Weather not set up";
+    const char *l2 = "Enable it in the web UI";
+    display.setCursor(centerText1(strlen(l1)), SCREEN_CENTER_Y - TEXT1_H);
+    display.print(l1);
+    display.setCursor(centerText1(strlen(l2)), SCREEN_CENTER_Y + 4);
+    display.print(l2);
     return;
   }
   if (!wx.valid) {
-    display.setCursor(28, 38);
-    display.print("Fetching weather...");
+    const char *msg = "Fetching weather...";
+    display.setCursor(centerText1(strlen(msg)), SCREEN_CENTER_Y - TEXT1_H / 2);
+    display.print(msg);
     return;
   }
 
   drawWeatherIcon(WICON_X, WICON_Y, weatherIconFromCode(wx.weatherCode));
-  drawTemperature(52, WICON_Y + 3, wx.tempC);
+  drawTemperature(WTEMP_X, WICON_Y + 3, wx.tempC);
 
   // --- Details row: min/max + humidity alternating with sun times ---
   char line[30];
@@ -193,8 +203,7 @@ void displayClockWithWeather() {
   } else {
     snprintf(line, sizeof(line), "\x18%s  \x19%s", wx.sunrise, wx.sunset);
   }
-  int w = strlen(line) * 6;
-  display.setCursor((SCREEN_WIDTH - w) / 2, WDETAIL_Y);
+  display.setCursor(centerText1(strlen(line)), WDETAIL_Y);
   display.print(line);
 
   if (!wifiConnected) {

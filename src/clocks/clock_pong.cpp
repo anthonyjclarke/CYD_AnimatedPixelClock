@@ -1,5 +1,5 @@
 /*
- * AnimatedPixelClock - Arkanoid Clock
+ * CYD_AnimatedPixelClock - Arkanoid Clock
  *
  * Breakout/Arkanoid-style clock with ball physics, paddle, and digit transitions.
  * Ball bounces off walls and digits, breaking them on time changes.
@@ -66,7 +66,7 @@ bool allPongFragmentsInactive() {
 // Initialize Pong animation
 void initPongAnimation() {
   // Reset ball 0 above paddle, traveling upward
-  pong_balls[0].x = 64 * 16;  // Center X
+  pong_balls[0].x = SCREEN_CENTER_X * 16;  // Center X
   pong_balls[0].y = (BREAKOUT_PADDLE_Y - 4) * 16;  // Just above paddle
 
   // Always start upward (negative Y) with random X direction
@@ -87,8 +87,8 @@ void initPongAnimation() {
   pong_balls[1].inside_digit = -1;
 
   // Reset paddle to center bottom
-  breakout_paddle.x = 64;
-  breakout_paddle.target_x = 64;
+  breakout_paddle.x = SCREEN_CENTER_X;
+  breakout_paddle.target_x = SCREEN_CENTER_X;
   breakout_paddle.width = settings.pongPaddleWidth;  // Use user-configured width
 
   // Clear digit transitions and reset bounce offsets
@@ -210,8 +210,8 @@ void updateBreakoutPaddle() {
   if (breakout_paddle.x - paddle_half < 0) {
     breakout_paddle.x = paddle_half;
   }
-  if (breakout_paddle.x + paddle_half > 127) {
-    breakout_paddle.x = 127 - paddle_half;
+  if (breakout_paddle.x + paddle_half > PLAY_RIGHT) {
+    breakout_paddle.x = PLAY_RIGHT - paddle_half;
   }
 
   // Track paddle position for momentum-based ball release (updated after movement)
@@ -337,10 +337,10 @@ void spawnAssemblyFragments(int digitIndex, char newChar) {
         // Start fragment from random position off-screen edges
         int start_side = random(0, 4);
         switch (start_side) {
-          case 0: f->x = random(0, 128); f->y = -5; break;  // Top
-          case 1: f->x = 133; f->y = random(0, 64); break;  // Right
-          case 2: f->x = random(0, 128); f->y = 69; break;  // Bottom
-          case 3: f->x = -5; f->y = random(0, 64); break;   // Left
+          case 0: f->x = random(0, SCREEN_WIDTH); f->y = -5; break;                  // Top
+          case 1: f->x = SCREEN_WIDTH + 5; f->y = random(0, SCREEN_HEIGHT); break;  // Right
+          case 2: f->x = random(0, SCREEN_WIDTH); f->y = SCREEN_HEIGHT + 5; break;  // Bottom
+          case 3: f->x = -5; f->y = random(0, SCREEN_HEIGHT); break;                // Left
         }
 
         // Store target position for this fragment
@@ -782,7 +782,7 @@ void drawPongBall() {
 
 // Draw Pong clock digits with custom pop-in animation
 void drawPongDigits() {
-  display.setTextSize(3);
+  display.setTextSize(DIGIT_TEXT_SIZE);
   display.setTextColor(digitColor());
 
   // Build digit string
@@ -1054,12 +1054,9 @@ void displayClockWithPong() {
   struct tm timeinfo;
   if (!getTimeWithTimeout(&timeinfo)) {
     display.setTextSize(1);
-    display.setCursor(20, 28);
-    if (!ntpSynced) {
-      display.print("Syncing time...");
-    } else {
-      display.print("Time Error");
-    }
+    const char *msg = ntpSynced ? "Time Error" : "Syncing time...";
+    display.setCursor(centerText1(strlen(msg)), SCREEN_CENTER_Y - TEXT1_H / 2);
+    display.print(msg);
     return;
   }
 
@@ -1092,9 +1089,9 @@ void displayClockWithPong() {
     case 3: sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday,
                     timeinfo.tm_mon + 1, timeinfo.tm_year + 1900); break;
   }
-  display.setCursor((SCREEN_WIDTH - 60) / 2, 4);
+  display.setCursor(centerText1(strlen(dateStr)), 4);
   display.print(dateStr);
-  drawMeridiemIndicator(110, 4, displayed_is_pm);
+  drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, 4, displayed_is_pm);
 
   // 2. Digits (with transitions and bounce)
   drawPongDigits();

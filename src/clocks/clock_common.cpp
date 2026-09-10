@@ -1,5 +1,5 @@
 /*
- * AnimatedPixelClock - Common Clock Helpers
+ * CYD_AnimatedPixelClock - Common Clock Helpers
  *
  * Shared helper functions used by multiple clock implementations.
  */
@@ -259,17 +259,15 @@ void displayStandardClock() {
   struct tm timeinfo;
   if(!getTimeWithTimeout(&timeinfo)) {
     display.setTextSize(1);
-    display.setCursor(20, 28);
-    if (!ntpSynced) {
-      display.print("Syncing time...");
-    } else {
-      display.print("Time Error");
-    }
+    const char *msg = ntpSynced ? "Time Error" : "Syncing time...";
+    display.setCursor(centerText1(strlen(msg)), SCREEN_CENTER_Y - TEXT1_H / 2);
+    display.print(msg);
     return;
   }
 
-  // Time display
-  display.setTextSize(3);
+  // Time display. DIGIT_TEXT_SIZE keeps the row at ~75% of the canvas width on
+  // any board - see clock_layout.h.
+  display.setTextSize(DIGIT_TEXT_SIZE);
   char timeStr[9];
 
   int displayHour = 0;
@@ -283,15 +281,13 @@ void displayStandardClock() {
   sprintf(timeStr, "%02d%c%02d", displayHour, separator, displayMin);
 
   // Center time
-  int time_width = 5 * 18;  // 5 chars * 18px
-  int time_x = (SCREEN_WIDTH - time_width) / 2;
-  display.setCursor(time_x, 8);
+  display.setCursor(TIME_X, TIME_Y);
   display.setTextColor(digitColor());
   display.print(timeStr);
   display.setTextColor(DISPLAY_WHITE);  // date / AM-PM stay white
 
-  // AM/PM indicator for 12-hour format
-  drawMeridiemIndicator(110, 8, isPM);
+  // AM/PM indicator for 12-hour format, tucked to the right of the digit row.
+  drawMeridiemIndicator(DIGITS_RIGHT + 2, TIME_Y, isPM);
 
   // Date display
   display.setTextSize(1);
@@ -312,16 +308,13 @@ void displayStandardClock() {
       break;
   }
 
-  int date_x = (SCREEN_WIDTH - 60) / 2;
-  display.setCursor(date_x, 38);
+  display.setCursor(centerText1(strlen(dateStr)), DATE_Y);
   display.print(dateStr);
 
   // Day of week
   const char* days[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
   const char* dayName = days[timeinfo.tm_wday];
-  int day_width = strlen(dayName) * 6;
-  int day_x = (SCREEN_WIDTH - day_width) / 2;
-  display.setCursor(day_x, 52);
+  display.setCursor(centerText1(strlen(dayName)), DAY_Y);
   display.print(dayName);
 
   // Draw no-WiFi icon if disconnected
@@ -335,12 +328,9 @@ void displayLargeClock() {
   struct tm timeinfo;
   if(!getTimeWithTimeout(&timeinfo)) {
     display.setTextSize(1);
-    display.setCursor(20, 28);
-    if (!ntpSynced) {
-      display.print("Syncing time...");
-    } else {
-      display.print("Time Error");
-    }
+    const char *msg = ntpSynced ? "Time Error" : "Syncing time...";
+    display.setCursor(centerText1(strlen(msg)), SCREEN_CENTER_Y - TEXT1_H / 2);
+    display.print(msg);
     return;
   }
 
@@ -350,23 +340,29 @@ void displayLargeClock() {
   formatTimeForDisplay(timeinfo.tm_hour, timeinfo.tm_min, displayHour,
                        displayMin, isPM);
 
-  // Large time display - size 4 (24px per char)
-  display.setTextSize(4);
+  // Large time display: one step up from the standard row. The canvas has the
+  // width for it at 75% + 25%, and this style has no date/day competing for
+  // vertical space beyond a single bottom row.
+  constexpr int LARGE_TEXT_SIZE = DIGIT_TEXT_SIZE + 1;
+  constexpr int LARGE_W = 5 * 6 * LARGE_TEXT_SIZE;
+  constexpr int LARGE_H = 8 * LARGE_TEXT_SIZE;
+  display.setTextSize(LARGE_TEXT_SIZE);
   char timeStr[6];
   // Use blinking colon based on settings
   char separator = shouldShowColon() ? ':' : ' ';
   sprintf(timeStr, "%02d%c%02d", displayHour, separator, displayMin);
 
-  // Center time: 5 chars * 24px = 120px, centered in 128px
-  int time_x = (SCREEN_WIDTH - 120) / 2;
-  display.setCursor(time_x, 4);
+  // Centre the row, and sit it above the single date line at the bottom.
+  constexpr int LARGE_X = (SCREEN_WIDTH - LARGE_W) / 2;
+  constexpr int LARGE_Y = (SCREEN_HEIGHT - TEXT1_H - 4 - LARGE_H) / 2;
+  display.setCursor(LARGE_X, LARGE_Y);
   display.setTextColor(digitColor());
   display.print(timeStr);
   display.setTextColor(DISPLAY_WHITE);  // date / AM-PM stay white
 
-  // AM/PM indicator for 12-hour format lives in the bottom-right corner here,
-  // so it does not collide with the oversized minute digits.
-  drawMeridiemIndicator(110, 54, isPM);
+  // AM/PM indicator lives in the bottom-right corner here, so it does not
+  // collide with the oversized minute digits.
+  drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, SCREEN_HEIGHT - TEXT1_H - 2, isPM);
 
   // Date at bottom
   display.setTextSize(1);
@@ -387,8 +383,7 @@ void displayLargeClock() {
       break;
   }
 
-  int date_x = (SCREEN_WIDTH - 60) / 2;
-  display.setCursor(date_x, 54);
+  display.setCursor(centerText1(strlen(dateStr)), SCREEN_HEIGHT - TEXT1_H - 2);
   display.print(dateStr);
 
   // Draw no-WiFi icon if disconnected

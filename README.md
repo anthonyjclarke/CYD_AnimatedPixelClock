@@ -39,10 +39,9 @@ larger canvas.
 
 ## Port status
 
-**Both board targets build.** Nothing has been flashed or verified on real
-hardware yet, and the clock styles still lay themselves out for the original
-128×64 matrix, so they will render in the top-left corner of the larger canvas
-until the layout rework lands.
+**The port is feature-complete and builds on both targets.** Nothing has been
+flashed or verified on real hardware yet — every layout below is derived
+arithmetic, checked for bounds but not seen running.
 
 | Area                                       | Status                                       |
 |:-------------------------------------------|:---------------------------------------------|
@@ -53,15 +52,15 @@ until the layout rework lands.
 | `Serial.print` → `DBG_*` conversion         | Complete — 64 call sites                     |
 | Touch, LDR, RGB LED modules                 | Complete — not yet verified on hardware      |
 | Archive of out-of-scope upstream assets     | Complete                                     |
-| Clock-style layout rework, 128×64 → canvas  | **Not started** — the bulk of the remaining work |
-| Hardware bring-up on either board           | Not started                                  |
+| Clock-style layout rework, all 14 styles    | Complete — not yet verified on hardware      |
+| Hardware bring-up on either board           | **Not started**                              |
 
 Build sizes, both environments well inside a 1.792 MB OTA slot:
 
 | Environment      | Flash                | Static RAM          |
 |:-----------------|:---------------------|:--------------------|
-| `esp32-cyd-28`   | 1,402,397 B (76.4%)  | 65,660 B (20.0%)    |
-| `esp32-cyd-40`   | 1,396,489 B (76.1%)  | 65,916 B (20.1%)    |
+| `esp32-cyd-28`   | 1,403,473 B (76.5%)  | 71,212 B (21.7%)    |
+| `esp32-cyd-40`   | 1,397,645 B (76.2%)  | 81,052 B (24.7%)    |
 
 The canvas is allocated from the heap on top of that: 37.5 KB on the 2.8″,
 75 KB on the 4.0″.
@@ -110,6 +109,31 @@ That keeps the chunky pixel-art look intact on an LCD while giving the layouts
 substantially more room than the original 128×64. Animation code addresses
 `SCREEN_WIDTH` / `SCREEN_HEIGHT` only, so a new board is a new environment
 rather than a code change.
+
+### Laying out for a canvas, not a panel
+
+Every style positions itself from `src/clocks/clock_layout.h`, which derives its
+metrics from the canvas. Two things scale differently, and the split matters:
+
+**Text scales.** Upstream's five digits filled 90 of 128 px — about 70% of the
+width. `DIGIT_TEXT_SIZE` holds that proportion at 75% on both boards, so the
+4.0″ gets a bigger clock rather than the same small one with more empty space
+around it.
+
+**Sprites do not.** Mario, the ghosts, the invaders and the dino are fixed pixel
+art. Both boards render at ×2, so a logical pixel is the same physical size on
+each — keeping sprites at their logical size keeps them the same physical size
+too, and the larger panel simply shows more room around them. Scaling them would
+mean redrawing every sprite.
+
+The constraint that fixes the vertical composition is that Mario bounces a digit
+by putting his head against its underside, so the gap between the digit row and
+the character baseline has to stay exactly one sprite tall. Everything else —
+date row, day row, play areas — flows from that.
+
+The extra height goes where it is useful: Tetris' well grows from 5 rows to 11
+(25 in small-clock mode), and Snake's flow-field arena from 32×16 cells to
+40×30.
 
 **Only changed rows are pushed.** A full-frame push costs about 22 ms on the
 2.8″ and 91 ms on the 4.0″ — the latter would cap that board near 11 fps.

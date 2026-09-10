@@ -1,5 +1,5 @@
 /*
- * AnimatedPixelClock - Dino Runner Clock (clockStyle 11)
+ * CYD_AnimatedPixelClock - Dino Runner Clock (clockStyle 11)
  *
  * Chrome T-Rex homage. The dino runs in place near the bottom of the screen
  * while the world scrolls past: dashed ground, drifting parallax clouds and
@@ -26,7 +26,7 @@
 #define DINO_TIME_Y_CENTER 21    // digit top when centred (date off)
 #define DINO_TRIGGER_SECOND 56
 #define DINO_DIGIT_W 16
-#define DINO_GROUND_Y 57         // ground line; feet sit on it
+#define DINO_GROUND_Y GROUND_Y   // ground line; feet sit on it
 #define DINO_X 12                // dino's fixed screen position
 #define DINO_MAX_CACTI 3
 #define DINO_MAX_CLOUDS 2
@@ -413,8 +413,9 @@ void displayClockWithDino() {
   struct tm timeinfo;
   if (!getTimeWithTimeout(&timeinfo)) {
     display.setTextSize(1);
-    display.setCursor(20, 28);
-    display.print(ntpSynced ? "Time Error" : "Syncing time...");
+    const char *msg = ntpSynced ? "Time Error" : "Syncing time...";
+    display.setCursor(centerText1(strlen(msg)), SCREEN_CENTER_Y - TEXT1_H / 2);
+    display.print(msg);
     return;
   }
 
@@ -452,7 +453,7 @@ void displayClockWithDino() {
   // Time digits (size 3). The digit being carried away is drawn hanging from
   // the pterodactyl instead of in its slot; the slot stays empty until the
   // new digit drops in from above.
-  display.setTextSize(3);
+  display.setTextSize(DIGIT_TEXT_SIZE);
   display.setTextColor(digitColor());  // kept through the carried ptero digit
   char dch[5];
   dch[0] = '0' + displayed_hour / 10;
@@ -476,7 +477,7 @@ void displayClockWithDino() {
   if (ptero_active) {
     drawPtero((int)ptero_x, (int)ptero_y);
     if (dino_phase == DINO_PTERO_CARRY && carryIdx >= 0) {
-      display.setTextSize(3);
+      display.setTextSize(DIGIT_TEXT_SIZE);
       display.setCursor((int)ptero_x - 6, (int)ptero_y + 4);
       display.print(dch[carryIdx]);
     }
@@ -493,10 +494,10 @@ void displayClockWithDino() {
       case 2: sprintf(dateStr, "%04d-%02d-%02d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday); break;
       case 3: sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900); break;
     }
-    display.setCursor((SCREEN_WIDTH - 60) / 2, 4);
+    display.setCursor(centerText1(strlen(dateStr)), 4);
     display.print(dateStr);
   }
-  drawMeridiemIndicator(110, 4, displayed_is_pm);
+  drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, 4, displayed_is_pm);
 
   if (!wifiConnected) drawNoWiFiIcon(0, 0);
 }

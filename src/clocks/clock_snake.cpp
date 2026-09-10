@@ -1,5 +1,5 @@
 /*
- * AnimatedPixelClock - Snake Clock (clockStyle 7)
+ * CYD_AnimatedPixelClock - Snake Clock (clockStyle 7)
  *
  * A Nokia-style snake lives on a 4px grid. It moves one cell at a time in the
  * four cardinal directions, never reverses onto its neck, and steers around
@@ -26,16 +26,18 @@
 
 // ========== Layout / tuning ==========
 #define SCELL 4                      // grid cell size in pixels
-#define SGRID_W 32                   // 128 / 4
-#define SGRID_H 16                   // 64 / 4
-#define SNAKE_CELLS (SGRID_W * SGRID_H)  // 512 cells - flow-field work area
+#define SGRID_W (SCREEN_WIDTH / SCELL)
+#define SGRID_H (SCREEN_HEIGHT / SCELL)
+// Flow-field work area: 40x30 = 1200 cells at 160x120, 60x40 = 2400 at 240x160.
+#define SNAKE_CELLS (SGRID_W * SGRID_H)
 #define SNAKE_MAX_LEN 24             // hard ceiling on body cells
-#define SNAKE_DIGIT_W 16             // size-3 digit obstacle width
-#define SNAKE_DIGIT_H 21             // size-3 digit obstacle height
-#define SNAKE_TIME_Y_TOP 16          // digit top when the date is shown
-#define SNAKE_TIME_Y_CENTER 21       // digit top when centred (date off)
+// The digit an obstacle covers is the inked glyph, not the full advance cell.
+#define SNAKE_DIGIT_W DIGIT_GLYPH_W
+#define SNAKE_DIGIT_H (7 * DIGIT_TEXT_SIZE)
+#define SNAKE_TIME_Y_TOP TIME_Y_BASE                        // date shown
+#define SNAKE_TIME_Y_CENTER ((SCREEN_HEIGHT - DIGIT_H) / 2)  // centred, date off
 #define SNAKE_TRIGGER_SECOND 56
-#define SNAKE_PELLET_PITCH 3         // pellet grid pitch (matches size-3 glyph)
+#define SNAKE_PELLET_PITCH DIGIT_TEXT_SIZE  // pellet grid pitch = one glyph pixel
 #define SNAKE_PELLETS_PER_DIGIT 5    // how many pellets a digit leaves behind
 #define SNAKE_MAX_PELLETS 35         // 5x7 glyph cells
 #define SNAKE_LEAVE_MAX_STEPS 40     // safety cap waiting for the snake to clear
@@ -532,8 +534,9 @@ void displayClockWithSnake() {
   struct tm timeinfo;
   if (!getTimeWithTimeout(&timeinfo)) {
     display.setTextSize(1);
-    display.setCursor(20, 28);
-    display.print(ntpSynced ? "Time Error" : "Syncing time...");
+    const char *msg = ntpSynced ? "Time Error" : "Syncing time...";
+    display.setCursor(centerText1(strlen(msg)), SCREEN_CENTER_Y - TEXT1_H / 2);
+    display.print(msg);
     return;
   }
 
@@ -554,10 +557,10 @@ void displayClockWithSnake() {
       case 2: sprintf(dateStr, "%04d-%02d-%02d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday); break;
       case 3: sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900); break;
     }
-    display.setCursor((SCREEN_WIDTH - 60) / 2, 4);
+    display.setCursor(centerText1(strlen(dateStr)), 4);
     display.print(dateStr);
   }
-  drawMeridiemIndicator(110, 4, displayed_is_pm);
+  drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, 4, displayed_is_pm);
 
   // Optional Nokia arena frame
   if (settings.snakeWallBorder) {
@@ -567,7 +570,7 @@ void displayClockWithSnake() {
 
   // Time digits (size 3). The digit being eaten is shown as its leftover
   // pellets; the digit being vacated is left blank until the snake clears it.
-  display.setTextSize(3);
+  display.setTextSize(DIGIT_TEXT_SIZE);
   display.setTextColor(digitColor());
   char dch[5];
   dch[0] = '0' + displayed_hour / 10;
