@@ -1,7 +1,13 @@
 # CLAUDE.md — CYD_AnimatedPixelClock
 
 Port of **AnimatedPixelClock** (Keralots, MIT, upstream v2.3.0) from ESP32-S3 +
-2× 64×64 HUB75 panels to the ESP32 Cheap Yellow Display. Port version 1.0.0.
+2× 64×64 HUB75 panels to the ESP32 Cheap Yellow Display.
+
+`FIRMWARE_VERSION` in `include/config.h` is the only place the version lives.
+Releases are on `main`, tagged `vX.Y.Z`; `dev` carries a `-dev` suffix. Never
+release from `dev` or leave the suffix on a tagged commit — the version reaches
+the serial log, web UI, `/api/info` and mDNS, so a wrong one is wrong in five
+places at once.
 
 ## Target hardware
 
@@ -49,9 +55,8 @@ own digits and derive their own row geometry rather than using `DIGIT_X`.
 
 - **Never push the whole frame unconditionally.** `display()` hashes each canvas
   row (FNV-1a) and pushes only changed rows. A full push is ~22 ms on the 2.8″
-  and ~91 ms on the 4.0″ — the latter would cap that board near 11 fps. A shadow
-  framebuffer was rejected: 37–75 KB against a ~200 KB free heap, where the 4.0″
-  canvas alone is already 75 KB.
+  and ~91 ms on the 4.0″, capping that board near 11 fps. A shadow framebuffer
+  was rejected: 37–75 KB against a ~200 KB heap.
 - **Never drop `tft.setSwapBytes(true)`** from `CydDisplay::begin()`.
   GFXcanvas16 stores host-order RGB565; TFT_eSPI pushes image arrays
   byte-for-byte by default. Without it yellow renders purple and red renders
@@ -94,7 +99,6 @@ filesystem can be added later without repartitioning and losing settings.
 ## Archive
 
 `archive/` holds upstream assets this port does not build — PC-metrics mode, the
-visualizer, ambient screensavers and the `.pca` player, plus all HUB75 hardware
-and release material. Nothing there is compiled; `archive/README.md` says what
-restoring each would take. A pristine upstream copy sits outside the repo at
-`PlatformIO/Projects/AnimatedPixelClock`.
+visualizer, ambient screensavers, the `.pca` player and all HUB75 material.
+Nothing there is compiled; `archive/README.md` says what restoring each takes. A
+pristine upstream copy sits at `PlatformIO/Projects/AnimatedPixelClock`.

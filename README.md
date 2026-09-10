@@ -1,7 +1,7 @@
 # CYD_AnimatedPixelClock
 
 <!-- Update version badge when FIRMWARE_VERSION changes in include/config.h -->
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.1.0--dev-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-ESP32-green.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-6.x-orange.svg)
 ![Board](https://img.shields.io/badge/CYD-2.4%22%20%7C%202.8%22%20%7C%204.0%22-yellow.svg)
@@ -39,7 +39,7 @@ larger canvas.
 
 ## Port status
 
-**v1.0.0, running on a CYD 2.4″.** The display path is confirmed on hardware:
+**v1.1.0-dev, on `dev`. Latest release is [v1.0.0](../../releases/tag/v1.0.0), running on a CYD 2.4″.** The display path is confirmed on hardware:
 canvas, scaled blit, colour order and row-change detection all work. The clock
 layouts are derived arithmetic that has been seen booting but not yet judged
 style by style, and the 2.8″ and 4.0″ targets remain build-only. See the

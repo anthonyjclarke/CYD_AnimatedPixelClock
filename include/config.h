@@ -19,9 +19,16 @@
 #include <Arduino.h>
 
 // ============================ Version ====================================
-// Upstream AnimatedPixelClock (Keralots) reached 2.3.0 on HUB75 hardware.
-// This CYD port restarts at 1.0.0 with its own history; see CHANGELOG.md.
-constexpr const char *FIRMWARE_VERSION = "1.0.0";
+// Single source of truth for the firmware version: reported at boot, in the web
+// UI, /api/info, the mDNS TXT record and to Improv-Serial.
+//
+// Releases live on `main` and are tagged vX.Y.Z. This is `dev`, so the version
+// carries a -dev suffix - a development build must never be mistaken for the
+// release it will become. Drop the suffix only when cutting the release.
+//
+// Upstream AnimatedPixelClock (Keralots) reached 2.3.0 on HUB75 hardware. This
+// CYD port restarts its own history at 1.0.0; see CHANGELOG.md.
+constexpr const char *FIRMWARE_VERSION = "1.1.0-dev";
 constexpr const char *UPSTREAM_VERSION = "2.3.0";
 
 // ====================== Logical canvas geometry ==========================

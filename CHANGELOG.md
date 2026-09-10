@@ -23,6 +23,15 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
 
 ---
 
+## [Unreleased] — 1.1.0-dev
+
+Nothing yet. See the [Roadmap](README.md#roadmap) for what is queued: the enemy
+sprites still drawn at the old abstraction level, magnifying the other styles'
+characters, scenery beyond Mario, and the eleven clock styles that have never
+been judged on hardware.
+
+---
+
 ## [1.0.0] 11-09-2026
 
 First release. The complete port, running on a CYD 2.4″.
