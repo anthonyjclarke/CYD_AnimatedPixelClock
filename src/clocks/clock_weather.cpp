@@ -23,6 +23,7 @@
 #define WICON_X (SCREEN_WIDTH / 16)
 #define WICON_Y (WTIME_Y + WTIME_H + 10)
 #define WTEMP_X (WICON_X + WICON_SIZE + 8)
+#define WTEMP_UNIT_GAP DIGIT_TEXT_SIZE  // last digit's ink to the degree sign: one digit pixel
 #define WDETAIL_Y (SCREEN_HEIGHT - TEXT1_H - 4)
 #define WDETAIL_SWAP_MS 5000
 
@@ -132,10 +133,16 @@ static void drawTemperature(int x, int y, float tempC) {
   display.setCursor(x, y);
   display.print(buf);
 
-  int endX = x + strlen(buf) * 18;
-  display.drawCircle(endX + 2, y + 1, 2, SPRITE_COLOR(COL_WEATHER_TEMP));
+  // Position the unit from where the digits actually ended. This used a fixed
+  // 18 px per character - upstream's size-3 advance - which left the degree
+  // sign on top of the last digit once the digits grew with the canvas. Every
+  // glyph ends in one blank column, so the cursor sits one digit pixel past the
+  // last digit's ink; the gap is measured from the ink.
+  const int inkEnd = display.getCursorX() - DIGIT_TEXT_SIZE;
+  const int degreeLeft = inkEnd + WTEMP_UNIT_GAP;
+  display.drawCircle(degreeLeft + 2, y + 1, 2, SPRITE_COLOR(COL_WEATHER_TEMP));
   display.setTextSize(1);
-  display.setCursor(endX + 7, y);
+  display.setCursor(degreeLeft + 7, y);
   display.print(settings.weatherUseFahrenheit ? "F" : "C");
   display.setTextColor(DISPLAY_WHITE);
 }
