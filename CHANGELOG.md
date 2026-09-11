@@ -23,6 +23,12 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
 
 ---
 
+## [Unreleased] — 1.2.0-dev
+
+Nothing yet. See the [Roadmap](README.md#roadmap) for what is queued.
+
+---
+
 ## [1.1.0] 11-09-2026
 
 **Initial working release.** Verified on a 320×240 ILI9341 CYD and a 480×320
