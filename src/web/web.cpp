@@ -130,7 +130,7 @@ void handleDeviceInfo() {
  doc["rssi"] = WiFi.RSSI();
  doc["uptime"] = millis() / 1000;
  doc["freeHeap"] = ESP.getFreeHeap();
- doc["model"] = "AnimatedPixelClock";
+ doc["model"] = PROJECT_NAME;
  doc["build"] = __DATE__ " " __TIME__;
  doc["chip"] = ESP.getChipModel();
  doc["flashBytes"] = ESP.getFlashChipSize();
@@ -183,6 +183,9 @@ void handleStatus() {
  doc["canvasRows"] = SCREEN_HEIGHT;
  doc["brightness"] = (settings.displayBrightness * 100) / 255; // percent
  doc["clockStyle"] = settings.clockStyle;
+ // Named for the web UI status readout. The selected style, as the serial
+ // heartbeat reports it - "Cycle All" while rotation is running.
+ doc["clockStyleName"] = clockStyleName(settings.clockStyle);
  doc["tronBikeStyle"] = settings.tronBikeStyle;
  doc["uptime"] = millis() / 1000;
 
@@ -536,6 +539,22 @@ static String buildColorsCard() {
   return out;
 }
 
+// Escape text for a double-quoted HTML attribute. Needed for anything that did
+// not come from this firmware, such as a place name from the geocoding API.
+static String htmlAttr(const char* s) {
+  String out;
+  for (; *s; ++s) {
+    switch (*s) {
+      case '&': out += F("&amp;"); break;
+      case '"': out += F("&quot;"); break;
+      case '<': out += F("&lt;"); break;
+      case '>': out += F("&gt;"); break;
+      default: out += *s;
+    }
+  }
+  return out;
+}
+
 static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "V_CYCLECONFIG")) { out = settings.cycleConfig; return true; }
   // --- Header / identity ---
@@ -721,6 +740,7 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "V_WEATHERLAT")) { out = String(settings.weatherLat, 4); return true; }
   if (!strcmp(n, "V_WEATHERLON")) { out = String(settings.weatherLon, 4); return true; }
   if (!strcmp(n, "V_WEATHERKEY")) { out = String(settings.weatherApiKey); return true; }
+  if (!strcmp(n, "V_WEATHERPLACE")) { out = htmlAttr(settings.weatherPlace); return true; }
   if (!strcmp(n, "SEL_USE24HOUR")) { out = String(settings.use24Hour ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_USE24HOUR_NOT")) { out = String(!settings.use24Hour ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_DATEFORMAT_0")) { out = String(settings.dateFormat == 0 ? "selected" : ""); return true; }
@@ -1153,6 +1173,17 @@ void handleSave() {
  settings.weatherApiKey[32] = '\0';
  }
  }
+ if (server.hasArg("weatherPlace")) {
+   String place = server.arg("weatherPlace");
+   size_t len = place.length();
+   if (len >= sizeof(settings.weatherPlace)) {
+     len = sizeof(settings.weatherPlace) - 1;
+     // Do not cut a multi-byte UTF-8 character in half ("São Paulo").
+     while (len > 0 && ((uint8_t)place[len] & 0xC0) == 0x80) len--;
+   }
+   memcpy(settings.weatherPlace, place.c_str(), len);
+   settings.weatherPlace[len] = '\0';
+ }
  weatherSettingsChanged(); // wake the fetch task for the new location
  }
 
@@ -1529,6 +1560,15 @@ void handleExportConfig() {
  json += "\"weatherLon\":" + String(settings.weatherLon, 4) + ",";
  json += "\"weatherUseFahrenheit\":" + String(settings.weatherUseFahrenheit ? "true" : "false") + ",";
  json += "\"weatherApiKey\":\"" + String(settings.weatherApiKey) + "\",";
+  {
+    // The place name comes from a third-party API and may hold quotes, so let
+    // ArduinoJson escape it rather than concatenating it raw.
+    JsonDocument placeDoc;
+    placeDoc.set(settings.weatherPlace);
+    String placeJson;
+    serializeJson(placeDoc, placeJson);
+    json += "\"weatherPlace\":" + placeJson + ",";
+  }
 
  json += "\"spriteColors\":[";
  for (int i = 0; i < COL_COUNT; i++) {
@@ -1664,6 +1704,13 @@ void handleImportConfig() {
    if (key && strlen(key) <= 32) {
      strncpy(settings.weatherApiKey, key, 32);
      settings.weatherApiKey[32] = '\0';
+   }
+ }
+ if (!doc["weatherPlace"].isNull()) {
+   const char* place = doc["weatherPlace"];
+   if (place) {
+     strncpy(settings.weatherPlace, place, sizeof(settings.weatherPlace) - 1);
+     settings.weatherPlace[sizeof(settings.weatherPlace) - 1] = '\0';
    }
  }
  if (!doc["deviceName"].isNull()) {

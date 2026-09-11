@@ -627,7 +627,8 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
               <div class="field" style="margin:16px 0 0">
                 <label class="field-label" for="weatherCity">Find your location</label>
                 <div style="display:flex;gap:8px;align-items:center">
-                  <input type="text" id="weatherCity" placeholder="City name..." style="flex:1">
+                  <input type="text" id="weatherCity" placeholder="City name..." style="flex:1" value="%V_WEATHERPLACE%">
+                  <input type="hidden" name="weatherPlace" id="weatherPlace" value="%V_WEATHERPLACE%">
                   <button type="button" class="btn" id="weatherGeoBtn">Search</button>
                 </div>
                 <p class="field-hint" id="weatherGeoStatus">Search fills the coordinates below (lookup runs in your browser).</p>
@@ -1098,11 +1099,27 @@ if (d.results && d.results.length) {
 var g = d.results[0];
 $('#weatherLat').value = g.latitude.toFixed(4);
 $('#weatherLon').value = g.longitude.toFixed(4);
-st.textContent = 'Found: ' + g.name + (g.admin1 ? ', ' + g.admin1 : '') + (g.country ? ', ' + g.country : '');
+var place = g.name + (g.admin1 ? ', ' + g.admin1 : '') + (g.country ? ', ' + g.country : '');
+$('#weatherPlace').value = place;
+$('#weatherCity').value = place;
+st.textContent = 'Found: ' + place + ' - press Save to keep it.';
+// Setting .value fires no input event, so the save bar would still say "All saved".
+markDirty();
 } else { st.textContent = 'No match found. Try a bigger nearby city.'; }
 })
 .catch(function () { st.textContent = 'Lookup failed (no internet?). Enter coordinates manually.'; });
 });
+// The saved place name labels the stored coordinates. Typing coordinates by hand
+// makes it stale, so it is dropped rather than left describing somewhere else.
+(function () {
+var wp = $('#weatherPlace'), st = $('#weatherGeoStatus');
+if (!wp) return;
+if (wp.value && st) st.textContent = 'Saved location: ' + wp.value;
+['#weatherLat', '#weatherLon'].forEach(function (sel) {
+var el = $(sel);
+if (el) el.addEventListener('input', function () { wp.value = ''; if (st) st.textContent = 'Custom coordinates.'; });
+});
+})();
 var dn = $('#deviceName');
 if (dn) dn.addEventListener('input', function () {
 var v = dn.value.toLowerCase() || 'pixelclock';
@@ -1130,7 +1147,7 @@ setTimeout(function () { window.location.href = '/'; }, 3000);
 });
 $('#resetBtn').addEventListener('click', function () {
 if (!confirm('Have you exported a backup of your settings?\n\nUse "Export config" first if not.\n\nOK to continue with factory reset, Cancel to go back.')) return;
-if (!confirm('ARE YOU SURE?\n\nThis permanently erases ALL settings:\n- WiFi credentials\n- Display & clock config\n- Metric labels & layout\n- Network settings\n\nThe device restarts into AP setup mode. This cannot be undone.')) return;
+if (!confirm('ARE YOU SURE?\n\nThis permanently erases ALL settings:\n- WiFi credentials\n- Display & clock config\n- Touch calibration\n- Network settings\n\nThe device restarts into AP setup mode. This cannot be undone.')) return;
 window.location.href = '/reset';
 });
 $('#exportBtn').addEventListener('click', function () {
@@ -1230,9 +1247,7 @@ function showCycle(){ $('#cycleSettings').style.display=$('#clockStyle').value==
 $('#clockStyle').addEventListener('change',showCycle);drawCycle();showCycle();
 function updateDiagnostics(d) {
  var reset={1:'Power on',3:'Software restart',4:'Panic',5:'Interrupt watchdog',6:'Task watchdog',7:'Watchdog',9:'Brownout'};
- var lines=['Firmware: '+d.version+' ('+d.build+')','Chip: '+d.chip,'Flash: '+(d.flashBytes/1048576).toFixed(0)+' MiB','Firmware size: '+Math.round(d.firmwareBytes/1024)+' KiB','Free heap: '+Math.round(d.freeHeap/1024)+' KiB','Lowest heap: '+Math.round(d.minFreeHeap/1024)+' KiB','Largest block: '+Math.round(d.largestHeapBlock/1024)+' KiB','Storage: '+Math.round(d.animationFreeBytes/1024)+' / '+Math.round(d.animationStorageBytes/1024)+' KiB free','Reset: '+(reset[d.resetReason]||d.resetReason),'Time synced: '+(d.ntpSynced?'yes':'no'),'Animation: '+(d.animationPlaying?'playing':'idle')];
- if(d.animationFailureCode)lines.push('Playback error code: '+d.animationFailureCode);
- if(d.lastAnimationError)lines.push('Last upload error: '+d.lastAnimationError);
+ var lines=['Firmware: '+d.version+' ('+d.build+')','Chip: '+d.chip,'Flash: '+(d.flashBytes/1048576).toFixed(0)+' MiB','Firmware size: '+Math.round(d.firmwareBytes/1024)+' KiB','Free heap: '+Math.round(d.freeHeap/1024)+' KiB','Lowest heap: '+Math.round(d.minFreeHeap/1024)+' KiB','Largest block: '+Math.round(d.largestHeapBlock/1024)+' KiB','Reset: '+(reset[d.resetReason]||d.resetReason),'Time synced: '+(d.ntpSynced?'yes':'no')];
  if(d.weatherValid)lines.push('Weather age: '+d.weatherAgeSeconds+'s');
  $('#diagnosticsText').textContent=lines.join('\n');
 }
@@ -1246,11 +1261,14 @@ if (typeof d.uptime === 'number') { var u = $('#srUptime'); if (u) u.textContent
 if (typeof d.rssi === 'number') { var rs = $('#srRssi'); if (rs) rs.textContent = d.rssi + ' dBm'; }
 if (typeof d.freeHeap === 'number') { var fh = $('#fwHeap'); if (fh) fh.textContent = (d.freeHeap / 1024).toFixed(1) + ' KB'; }
 }).catch(function () {});
-fetch('/api/status').then(function (r) { return r.json(); }).then(function (d) {
+function setReadout(online, text) {
 var led = $('#srLed'), title = $('#srTitle');
-if (led) { led.classList.toggle('online', !!d.pcOnline); led.classList.toggle('offline', !d.pcOnline); }
-if (title) title.textContent = (d.pcOnline ? 'PC online' : 'PC offline') + ' · ' + (d.mode || 'clock');
-}).catch(function () {});
+if (led) { led.classList.toggle('online', online); led.classList.toggle('offline', !online); }
+if (title) title.textContent = text;
+}
+fetch('/api/status').then(function (r) { return r.json(); }).then(function (d) {
+setReadout(true, 'Online · ' + (d.displayOn === false ? 'display off' : (d.clockStyleName || 'clock')));
+}).catch(function () { setReadout(false, 'Offline'); });
 }
 refreshStatus();
 setInterval(refreshStatus, 5000);

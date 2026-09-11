@@ -61,6 +61,7 @@ struct Settings {
   float weatherLon;             // Location longitude
   bool weatherUseFahrenheit;    // false = Celsius
   char weatherApiKey[33];       // Optional commercial API key ("" = free endpoint)
+  char weatherPlace[48];        // Place name from the web UI search ("" = coordinates typed by hand)
 
   // Network settings
   char deviceName[32];          // Device name for mDNS and app (default: "pixelclock")

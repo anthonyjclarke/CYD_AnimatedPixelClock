@@ -152,6 +152,7 @@ void loadSettings() {
     settings.weatherLon = 0;
     settings.weatherUseFahrenheit = false;
     settings.weatherApiKey[0] = '\0';
+    settings.weatherPlace[0] = '\0';
     // CYD hardware defaults
     settings.touchEnabled = true;
     settings.ldrAutoBrightness = false;
@@ -333,6 +334,11 @@ void loadSettings() {
   String loadedWeatherKey = preferences.getString("weatherKey", "");
   strncpy(settings.weatherApiKey, loadedWeatherKey.c_str(), 32);
   settings.weatherApiKey[32] = '\0';
+  // Only a label for the coordinates above - the fetch never reads it - kept
+  // so the web UI can say where the clock is set to after a reboot.
+  String loadedPlace = preferences.getString("weatherPlace", "");
+  strncpy(settings.weatherPlace, loadedPlace.c_str(), sizeof(settings.weatherPlace) - 1);
+  settings.weatherPlace[sizeof(settings.weatherPlace) - 1] = '\0';
 
   // CYD hardware settings (no upstream equivalent)
   settings.touchEnabled = preferences.getBool("touchEn", true);
@@ -552,7 +558,9 @@ void saveSettings() {
   preferences.putInt("dateFormat", settings.dateFormat);
   preferences.putInt("clockPos", settings.clockPosition);
   preferences.putInt("clockOffset", settings.clockOffset);
+  preferences.putUChar("colonBlink", settings.colonBlinkMode);
   preferences.putUChar("colonRate", settings.colonBlinkRate);
+  preferences.putUChar("brightness", settings.displayBrightness);
   preferences.putBool("schedDim", settings.enableScheduledDimming);
   preferences.putUChar("dimStart", settings.dimStartHour);
   preferences.putUChar("dimStartMin", settings.dimStartMinute);
@@ -571,6 +579,8 @@ void saveSettings() {
   preferences.putFloat("weatherLon", settings.weatherLon);
   preferences.putBool("weatherF", settings.weatherUseFahrenheit);
   preferences.putString("weatherKey", settings.weatherApiKey);
+  preferences.putString("weatherPlace", settings.weatherPlace);
+  preferences.putUChar("marioBnceH", settings.marioBounceHeight);
   preferences.putUChar("marioBnceS", settings.marioBounceSpeed);
   preferences.putBool("marioSmooth", settings.marioSmoothAnimation);
   preferences.putUChar("marioWalkSpd", settings.marioWalkSpeed);
