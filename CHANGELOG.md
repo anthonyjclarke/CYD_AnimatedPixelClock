@@ -23,6 +23,12 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
 
 ---
 
+## [Unreleased] — 1.3.0-dev
+
+Nothing yet. See the [Roadmap](README.md#roadmap) for what is queued.
+
+---
+
 ## [1.2.0] 12-09-2026
 
 Fixes found running 1.1.0 on hardware: the RGB status LED (wrong pins on the

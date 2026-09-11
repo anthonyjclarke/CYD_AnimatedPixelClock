@@ -28,7 +28,7 @@
 //
 // Upstream AnimatedPixelClock (Keralots) reached 2.3.0 on HUB75 hardware. This
 // CYD port restarts its own history at 1.0.0; see CHANGELOG.md.
-constexpr const char *FIRMWARE_VERSION = "1.2.0";
+constexpr const char *FIRMWARE_VERSION = "1.3.0-dev";
 constexpr const char *UPSTREAM_VERSION = "2.3.0";
 
 // ============================ Identity ===================================
