@@ -61,6 +61,10 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
   native pins, so the display gets direct hardware mapping rather than the GPIO
   matrix. The comment in `touch.cpp` asserted the display "already owns HSPI" —
   an assumption written and never checked.
+- **Saving from the web UI changed the clock style without logging it.** The
+  debug work claimed every style-change route logged; the Save handler was a
+  fourth route it missed, found when a hardware log showed Bomberman become
+  Matrix Rain with no trace. It now logs the change, tagged `[web ui]`.
 - **The clock picker called style 9 "Custom rotation"** while two hints on the
   same page, the logs, the README and upstream all called it "Cycle All". Now
   "Cycle All" everywhere, and the rotation card is headed to match.

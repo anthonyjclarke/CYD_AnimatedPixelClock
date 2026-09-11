@@ -149,9 +149,10 @@ void displayClockWithWeather();
 const char *clockStyleName(uint8_t style);
 
 // Switch the active style and reset the animation state, logging what changed
-// and what asked for it. Every route that changes the style goes through here -
-// touch, the HTTP API and the Cycle All rotation - so a style change is never
-// silent and its cause is always in the log.
+// and what asked for it. Used by touch and the HTTP API. Two other routes log
+// the change themselves instead: the web UI Save handler, which resets
+// animation state once after applying every field, and the Cycle All rotation,
+// which must not overwrite settings.clockStyle. If you add a route, log it.
 void applyClockStyle(uint8_t style, const char *source);
 
 #endif // CLOCKS_H

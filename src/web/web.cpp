@@ -990,7 +990,16 @@ void handleSave() {
    strcpy(settings.cycleConfig, cycle.c_str());
  }
  if (server.hasArg("clockStyle")) {
+ const uint8_t previousStyle = settings.clockStyle;
  settings.clockStyle = server.arg("clockStyle").toInt();
+ // Logged here rather than routed through applyClockStyle(): this handler
+ // resets every clock's animation state itself once all fields are applied,
+ // so the setter would reset twice.
+ if (settings.clockStyle != previousStyle) {
+   DBG_INFO("Clock style: %s (%u) -> %s (%u) [web ui]",
+            clockStyleName(previousStyle), previousStyle,
+            clockStyleName(settings.clockStyle), settings.clockStyle);
+ }
  }
 
  // Handle new timezone region selector (value is now an index into timezone database)
