@@ -42,7 +42,7 @@ larger canvas.
 **v1.1.0-dev, on `dev`. Latest release is [v1.0.0](../../releases/tag/v1.0.0), running on a CYD 2.4″.** The display path is confirmed on hardware:
 canvas, scaled blit, colour order and row-change detection all work. The clock
 layouts are derived arithmetic that has been seen booting but not yet judged
-style by style, and the 2.8″ and 4.0″ targets remain build-only. See the
+style by style, the 2.8″ env has run on hardware, and the 4.0″ has been flashed but its display fix is not yet confirmed. See the
 [Roadmap](#roadmap) for what is unverified and what comes next.
 
 | Area                                       | Status                                        |
@@ -77,12 +77,12 @@ controller. No external wiring is required.
 
 | Spec       | CYD 2.4″ (`esp32-cyd-24`) | CYD 2.8″ (`esp32-cyd-28`) | CYD 4.0″ (`esp32-cyd-40`) |
 |:-----------|:--------------------------|:--------------------------|:--------------------------|
-| MCU        | ESP32 (ESP32-2432S028R)   | ESP32 (ESP32-2432S040)    |
+| MCU        | ESP32 (ESP32-2432S024)    | ESP32 (ESP32-2432S028R)   | ESP32 (ESP32-32E)         |
 | Display    | ILI9341 · 320×240 · SPI   | ILI9341 · 320×240 · SPI   | ST7796S · 480×320 · SPI   |
-| Touch      | XPT2046 or CST820 †       | XPT2046 resistive         | XPT2046 resistive         |
+| Touch      | XPT2046 or CST820 †       | XPT2046, own SPI pins     | XPT2046, display's SPI ‡  |
 | Flash      | 4 MB · no PSRAM           | 4 MB · no PSRAM           | 4 MB · no PSRAM           |
 | Canvas     | 160×120 @ ×2              | 160×120 @ ×2              | 240×160 @ ×2              |
-| SPI freq   | 55 MHz                    | 55 MHz                    | 27 MHz                    |
+| SPI freq   | 55 MHz                    | 55 MHz                    | 40 MHz                    |
 | Backlight  | GPIO 21                   | GPIO 21                   | GPIO 27                   |
 | LDR        | GPIO 34                   | GPIO 34                   | not populated             |
 | RGB LED    | GPIO 4 / 16 / 17          | GPIO 4 / 16 / 17          | not populated             |
@@ -91,6 +91,11 @@ controller. No external wiring is required.
 as-is. **C** boards fit a capacitive CST820 on I2C, which is not supported —
 build with `-DHAS_RESISTIVE_TOUCH=0` so the driver never claims those GPIOs.
 Everything except tap-to-change-style works either way.
+
+‡ On the 4.0″ the XPT2046 shares the display's SPI lines, so TFT_eSPI drives it
+(`TOUCH_CS=33`); on the 2.4″ and 2.8″ it has dedicated pins and its own driver
+on VSPI. The 4.0″ wiring follows AuroraDemo_CYD on the same board and has not
+yet been confirmed here.
 
 ### First flash on a 2.4″
 
@@ -106,7 +111,7 @@ the symptom identifies the cause:
 | Backlight always full          | Different BL GPIO    | change `-DTFT_BL=21`                     |
 
 Display SPI pins are identical on both boards: MOSI 13, SCLK 14, CS 15, DC 2,
-MISO 12, no reset line. Touch sits on its own bus: CLK 25, CS 33, MOSI 32,
+MISO 12, no reset line. On the 2.4″ and 2.8″, touch sits on its own bus: CLK 25, CS 33, MOSI 32,
 MISO 39, IRQ 36.
 
 ---
@@ -157,7 +162,7 @@ The extra height goes where it is useful: Tetris' well grows from 5 rows to 11
 40×30.
 
 **Only changed rows are pushed.** A full-frame push costs about 22 ms on the
-2.8″ and 91 ms on the 4.0″ — the latter would cap that board near 11 fps.
+2.8″ and 61 ms on the 4.0″ at 40 MHz — the latter would cap that board near 16 fps.
 `CydDisplay::display()` hashes each canvas row and sends only what changed,
 which costs 4 bytes per row instead of the 37–75 KB a shadow framebuffer would
 need against a ~200 KB free heap.
@@ -228,7 +233,7 @@ At the default level a session looks like this:
 [INFO] Board    ESP32 CYD 2.8" (ILI9341)
 [INFO] Canvas   160x120 @ x2 -> panel 320x240 (38400 bytes)
 [INFO] Sprites  x1, character band 20px, digits 24x32
-[INFO] Hardware touch XPT2046, LDR GPIO34, RGB LED GPIO4/16/17
+[INFO] Hardware touch XPT2046 on own VSPI, LDR GPIO34, RGB LED GPIO4/16/17
 [INFO] Debug    level 3 (1=err 2=warn 3=info 4=verbose)
 [INFO] =======================================================
 [INFO] Touch: tap at canvas(88,54) raw(2210,1875) pressure 412
@@ -257,10 +262,10 @@ a desk. Anything genuinely broken is listed as a bug and comes first.
 | Item | Detail |
 |:--|:--|
 | Enemy sprites are still upstream's crude art | Goombas, Spinies, Koopas, the mushroom and star are 8×8-ish blocks drawn at the old abstraction level. Beside the 12×16 Mario they look out of place, and enabling idle encounters is what makes them visible. Same fix as Mario: character arrays in `mario_sprites.h`. |
-| 2.4″ touch revision unconfirmed | Unknown whether this board is the resistive "R" or capacitive "C" revision. If tapping does nothing, it is a "C" board and needs `-DHAS_RESISTIVE_TOUCH=0`. |
+| First board's touch is dead | The same firmware works on a second board, so this is that unit's hardware — a capacitive "C" revision or a faulty XPT2046. Firmware now ignores the impossible reads it produces rather than turning them into taps. |
 | Web UI never exercised in a browser | Three whole pages and ~300 lines of `PORTAL_JS` were removed during the port. All 172 placeholder tokens resolve, but that only proves a page compiles, not that it works. |
 | Eleven clock styles unjudged | Only Mario and Space have been looked at properly on hardware. The rest boot and their geometry is bounds-checked, but nothing beyond that. Bomberman's corridor spacing and TRON's approach waypoints are the loosest inferences and the most likely to need adjusting by eye. |
-| 2.8″ and 4.0″ never flashed | Both build, and the 4.0″ has a larger canvas, higher `SPRITE_SCALE` and different SPI timing that have only ever been exercised by the compiler. |
+| 4.0″ display and touch unconfirmed | First flash failed to allocate the canvas and showed nothing; fixed, but not yet seen on the panel. Touch there moved to the shared-bus backend, also unconfirmed. |
 | LDR thresholds are estimates | `LDR_RAW_BRIGHT` / `LDR_RAW_DARK` in `include/config.h` were guessed, not metered. Auto-brightness will track the room but the endpoints may be wrong. |
 | Touch calibration UI missing | Bounds are read from and written to NVS, but nothing captures them. Tap-to-change-style needs no accuracy, so this only matters if touch grows a real interface. |
 

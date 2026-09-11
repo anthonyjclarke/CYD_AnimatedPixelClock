@@ -52,6 +52,36 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
 
 ### Fixed
 
+- **The 4.0″ showed nothing: its canvas could not be allocated.** `CydDisplay`
+  allocated its buffer in its constructor, which for a global runs before
+  FreeRTOS has added the startup-stack regions to the heap. The 2.8″ canvas
+  (38.4 KB) fitted there; the 4.0″ canvas (76.8 KB in one block, on a build with
+  10 KB more static data) did not, so `begin()` returned before initialising the
+  panel. The buffer is now allocated at the top of `setup()`. The log reports
+  the largest free heap block either way, which will confirm the cause on the
+  next flash, and if allocation ever fails again the panel is painted solid red
+  instead of being left blank.
+- **Touch on the 4.0″ was wired as if it were a 2.8″.** On the ESP32-32E the
+  XPT2046 is on the display's SPI lines, not the dedicated CLK 25 / MISO 39 /
+  MOSI 32 pins, so reads came back as zeros. The touch module now has two
+  backends chosen by `TOUCH_CS`: XPT2046_Touchscreen on VSPI for the 2.4″ and
+  2.8″, and TFT_eSPI's own touch support on the shared bus for the 4.0″, which
+  now defines `TOUCH_CS=33`. Press and release thresholds match AuroraDemo_CYD
+  on the same board. Not yet confirmed on hardware.
+- **Impossible touch reads became phantom taps.** A controller that is not
+  answering reads pressure 4095 with coordinates at 0 or full scale. Two boards
+  did exactly that, and each time the read changed the clock style and saved
+  it. Those reads are now rejected, with one warning per boot.
+- A board that had never been calibrated logged "Touch calibration namespace
+  unavailable" as a warning on every boot. That is the normal state, so it is
+  now logged as info.
+- The 4.0″ SPI clock is now 40 MHz, the speed TheFlightWall_CYD runs on the same
+  board (was 27 MHz). Its BGR colour order is unchanged: BGR is also the ST7796
+  default, so the two reference projects' configs never conflicted.
+- The README hardware table's MCU row had two data columns under a three-board
+  header since the 2.4″ was added, and named the 4.0″ an ESP32-2432S040 rather
+  than the ESP32-32E actually in use. Timing figures in the docs and headers now
+  reflect the 4.0″'s 40 MHz clock: a full-frame push is ~61 ms, not ~91 ms.
 - **Touch shared an SPI peripheral with the display.** TFT_eSPI defaults to VSPI
   on the ESP32 unless `USE_HSPI_PORT` is set, and the XPT2046 driver claims VSPI
   too — so both were driving one peripheral, at 55 MHz and 2.5 MHz. That fails

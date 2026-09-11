@@ -271,10 +271,16 @@ void setup() {
   DBG_INFO("Sprites  x%d, character band %dpx, digits %dx%d", SPRITE_SCALE,
            CHAR_BAND, DIGIT_W, DIGIT_H);
   DBG_INFO("Hardware touch %s, LDR %s, RGB LED %s",
-           HAS_RESISTIVE_TOUCH ? "XPT2046" : "none",
+           TOUCH_BACKEND_NAME,
            HAS_LDR ? "GPIO34" : "none", HAS_RGB_LED ? "GPIO4/16/17" : "none");
   DBG_INFO("Debug    level %u (1=err 2=warn 3=info 4=verbose)", debugLevel);
   DBG_INFO("=======================================================");
+
+  // Allocate the canvas before anything else takes heap. It cannot happen in
+  // CydDisplay's constructor: globals are built before FreeRTOS adds the
+  // startup-stack regions to the heap, and the 4.0" canvas (76.8KB in one
+  // block) failed to allocate there.
+  display.allocateBuffer();
 
   // Load settings from flash
   loadSettings();

@@ -12,9 +12,10 @@ the serial log, web UI, `/api/info` and mDNS, so a wrong one is wrong five ways.
 
 Three envs, all plain `esp32dev`, 4 MB, no PSRAM: `esp32-cyd-24` and
 `esp32-cyd-28` (ILI9341 320×240, backlight GPIO 21, SPI 55 MHz) and
-`esp32-cyd-40` (ST7796S 480×320, backlight GPIO 27, SPI 27 MHz, BGR order).
-Standard CYD SPI display pins; only the backlight GPIO differs. The 2.4″ ships
-in resistive ("R") and capacitive ("C") revisions — see `HAS_RESISTIVE_TOUCH`.
+`esp32-cyd-40` (ESP32-32E, ST7796S 480×320, backlight GPIO 27, SPI 40 MHz).
+The display is on HSPI's native pins. Touch is an XPT2046 with its own VSPI pins
+on the 2.4″/2.8″, but on the display's SPI lines on the 4.0″ (per AuroraDemo_CYD;
+unconfirmed here) — see `TOUCH_CS`. Capacitive boards: `HAS_RESISTIVE_TOUCH=0`.
 
 ## Rendering model — the central architectural decision
 
@@ -23,13 +24,11 @@ TFT directly. `CydDisplay::display()` expands each logical pixel into a
 `DISPLAY_SCALE` block; canvas × scale equals the panel exactly — 160×120 @ ×2 on
 the 2.4″/2.8″, 240×160 @ ×2 on the 4.0″. No letterboxing on any board.
 
-- Animation code addresses **`SCREEN_WIDTH` / `SCREEN_HEIGHT` only** (aliases of
-  the canvas dims). Never write a raw panel coordinate in a clock style, and
-  never assume 128×64 — that was the upstream HUB75 canvas.
+- Animation code addresses **`SCREEN_WIDTH` / `SCREEN_HEIGHT` only**. Never write
+  a raw panel coordinate in a clock style, and never assume 128×64.
 - A new board is a new `[env:]` block, not a code change.
 - `CydDisplay` deliberately exposes the *upstream HUB75 shim's* API so ported
-  styles need no display edits. `waitForScanCompletion()` is an intentional
-  no-op — TFT pushes are synchronous.
+  styles need no display edits. `waitForScanCompletion()` is an intentional no-op.
 
 ## Layout — `src/clocks/clock_layout.h`
 
@@ -42,59 +41,49 @@ literal coordinates. Two rules split the metrics:
   `SPRITE_SCALE` expands it at draw time — `CydDisplay::setSpriteScale`.
 
 The vertical stack is built bottom-up from the text rows, because `CHAR_BAND`
-must stay exactly one sprite tall: Mario bounces a digit with his head.
-
-Pac-Man (pellet grid), TRON (seven segments) and Bomberman (bricks) draw their
-own digits and derive their own row geometry rather than using `DIGIT_X`.
+must stay exactly one sprite tall: Mario bounces a digit with his head. Pac-Man,
+TRON and Bomberman draw their own digits and derive their own row geometry.
 
 ## Never do these
 
-- **Never push the whole frame unconditionally.** `display()` hashes each canvas
-  row (FNV-1a) and pushes only changed rows. A full push is ~22 ms on the 2.8″
-  and ~91 ms on the 4.0″, capping that board near 11 fps. A shadow framebuffer
-  was rejected: 37–75 KB against a ~200 KB heap.
-- **Never drop `tft.setSwapBytes(true)`** from `CydDisplay::begin()`.
-  GFXcanvas16 stores host-order RGB565; TFT_eSPI pushes image arrays
-  byte-for-byte by default. Without it yellow renders purple and red renders
-  blue, while white and black — being palindromes — look perfectly fine.
-- **Never define `TOUCH_CS` as a build flag.** Touch is driven by
-  XPT2046_Touchscreen on its own VSPI instance; defining it makes TFT_eSPI claim
-  the same chip select and both drivers fight over the bus.
+- **Never push the whole frame unconditionally.** `display()` pushes only rows
+  whose FNV-1a hash changed; a full push is ~61 ms on the 4.0″ (~16 fps).
+- **Never allocate the canvas in a constructor.** Globals are constructed before
+  FreeRTOS adds the startup-stack regions to the heap, and the 76.8 KB 4.0″
+  canvas failed to allocate there. `allocateBuffer()` runs at the top of `setup()`.
+- **Never drop `tft.setSwapBytes(true)`.** GFXcanvas16 is host-order RGB565;
+  without it yellow renders purple and red blue, while white and black look fine.
+- **Never remove `USE_HSPI_PORT`.** TFT_eSPI defaults to VSPI, which the own-bus
+  touch driver also claims — touch then fails intermittently.
+- **`TOUCH_CS` picks the touch wiring — define it only on shared-bus boards.**
+  The 4.0″ sets `TOUCH_CS=33` so TFT_eSPI drives touch; on the 2.4″/2.8″ it would
+  make TFT_eSPI drive CS 33 alongside XPT2046_Touchscreen.
 - **Never unpin the platform.** `espressif32@6.12.0` (arduino-esp32 2.0.17) is
-  required — upstream targets the 2.x API (`esp_task_wdt_init(timeout, panic)`).
-  Unpinned resolves to the pioarduino 3.x fork and the build fails.
-- **Never let the canvas rotate.** `GFXcanvas16` has its own `rotation`; it must
-  stay 0 or the buffer layout stops being row-major and row hashing breaks.
-  Landscape comes from `tft.setRotation(TFT_ROTATION)` on the panel instead.
-- **Never narrow Tetris' well row back to `uint32_t`.** A 4 px cell over a
-  160 px canvas is 40 columns, 60 on the 4.0″ — both past 32 bits. `TetRow` is
-  `uint64_t`, and `TET_FULLROW` and `tet_clear_mask` widened with it.
-- **Never restore `.github/FUNDING.yml`** from `archive/` — those sponsorship
-  links are the upstream author's.
+  required — upstream uses the 2.x API; unpinned resolves to 3.x and fails.
+- **Never let the canvas rotate.** Its `rotation` must stay 0 or the buffer stops
+  being row-major and row hashing breaks. Landscape comes from `tft.setRotation`.
+- **Never narrow Tetris' well row back to `uint32_t`.** 40 columns at 160 px, 60
+  at 240 — `TetRow` is `uint64_t`, with `TET_FULLROW` and `tet_clear_mask`.
+- **Never restore `.github/FUNDING.yml`** — those links are the upstream author's.
 
 ## Deliberate deviations from the global rules
 
-Each is a considered exception, not an oversight:
-
-- **ArduinoJson v7**, not v6 — upstream's ~4 k lines of web/settings code uses
-  the v7 `JsonDocument` API; downgrading means rewriting all of it.
-- **POSIX `TZ` + SNTP**, not ezTime — `timezones.cpp` drives the web UI's
-  timezone selector, which ezTime would break.
-- **Adafruit GFX 5×7 font**, not VLW. The digits are pixel art on a chunky
-  canvas; a smooth font defeats the aesthetic. The VLW rule still applies to
-  native-resolution text drawn outside the canvas.
-- **`debugLevel` is `extern`**, not header-`static` — ~25 translation units, so
-  a header `static` would give each its own copy and break `/api/debug`.
+- **ArduinoJson v7**, not v6 — upstream's ~4 k lines of web/settings code use it.
+- **POSIX `TZ` + SNTP**, not ezTime — `timezones.cpp` drives the web UI selector.
+- **Adafruit GFX 5×7 font**, not VLW. The digits are pixel art on a chunky canvas;
+  the VLW rule still applies to native-resolution text outside the canvas.
+- **`debugLevel` is `extern`**, not header-`static` — ~25 translation units, so a
+  header `static` would give each its own copy and break `/api/debug`.
 
 ## Persistence
 
-NVS namespace `pixelclock`; touch calibration in `cydtouch`. Neither may be
-hardcoded. The 384 KB `spiffs` partition is unused, retained so a filesystem can
-be added later without repartitioning and losing settings.
+NVS namespace `pixelclock`; touch calibration in `cydtouch`. Each is named only in
+its owning module, and a factory reset asks each module to clear its own. The
+384 KB `spiffs` partition is unused, kept so a filesystem can be added later.
 
 ## Archive
 
-`archive/` holds upstream assets this port does not build — PC-metrics mode, the
+`archive/` holds upstream assets this port does not build — PC metrics, the
 visualizer, ambient screensavers, the `.pca` player and all HUB75 material.
 Nothing there is compiled; `archive/README.md` says what restoring each takes. A
 pristine upstream copy sits at `PlatformIO/Projects/AnimatedPixelClock`.

@@ -73,18 +73,32 @@ constexpr uint8_t TFT_ROTATION = 1;
 constexpr size_t CANVAS_BYTES = (size_t)CANVAS_WIDTH * CANVAS_HEIGHT * 2;
 
 // ====================== CYD hardware - touch (XPT2046) ===================
-// The touch controller sits on its own SPI bus, separate from the display.
-// Driven by XPT2046_Touchscreen on VSPI; TOUCH_CS is deliberately NOT defined
-// as a build flag so TFT_eSPI does not also try to claim the chip.
+// Every board here uses a resistive XPT2046, wired one of two ways. Whether
+// TOUCH_CS is defined in the board env picks which:
 //
-// Resistive XPT2046 is the only controller supported. The capacitive CYD
-// variants (the "C" suffix boards, e.g. ESP32-2432S024C) fit a CST820 on I2C
-// using some of the same GPIOs, so driving them as SPI would be wrong. Set
-// HAS_RESISTIVE_TOUCH=0 in the board env there: the touch module compiles to
-// stubs and never touches those pins.
+//   TOUCH_CS undefined - own bus (2.4", 2.8"). The dedicated pins below, driven
+//   by XPT2046_Touchscreen on VSPI. Do NOT define TOUCH_CS on these boards: it
+//   would make TFT_eSPI drive CS 33 too, and read touch off the display bus,
+//   where nothing is connected.
+//
+//   TOUCH_CS=33 - shared bus (4.0" ESP32-32E). The XPT2046 sits on the display's
+//   SPI lines and TFT_eSPI drives it. The dedicated pins below are unused.
+//
+// Capacitive boards (the "C" suffix, e.g. ESP32-2432S024C) fit a CST820 on I2C
+// using some of the same GPIOs. Set HAS_RESISTIVE_TOUCH=0 there: the touch
+// module compiles to stubs and never touches those pins.
 #ifndef HAS_RESISTIVE_TOUCH
 #define HAS_RESISTIVE_TOUCH 1
 #endif
+
+#if !HAS_RESISTIVE_TOUCH
+#define TOUCH_BACKEND_NAME "none"
+#elif defined(TOUCH_CS)
+#define TOUCH_BACKEND_NAME "XPT2046 on shared display SPI"
+#else
+#define TOUCH_BACKEND_NAME "XPT2046 on own VSPI"
+#endif
+
 constexpr uint8_t TOUCH_SPI_CLK = 25;
 constexpr uint8_t TOUCH_SPI_MISO = 39;  // input-only pin - correct for MISO
 constexpr uint8_t TOUCH_SPI_MOSI = 32;
@@ -96,6 +110,17 @@ constexpr uint32_t TOUCH_SPI_FREQUENCY = 2500000;
 
 // Ignore repeat presses inside this window (ms).
 constexpr uint32_t TOUCH_DEBOUNCE_MS = 250;
+
+// Pressure thresholds for the shared-bus backend, which polls pressure instead
+// of waiting on an IRQ. Press and release differ so a finger resting near the
+// threshold does not retrigger: 350 is TFT_eSPI's own press threshold, 120 the
+// release level AuroraDemo_CYD uses on the same 4.0" board.
+constexpr uint16_t TOUCH_Z_PRESS = 350;
+constexpr uint16_t TOUCH_Z_RELEASE = 120;
+
+// Pressure at or above this is not a finger. An XPT2046 that is not answering
+// reads Z1 == Z2, which its pressure maths turns into exactly 4095.
+constexpr uint16_t TOUCH_Z_SATURATED = 4000;
 
 // Raw XPT2046 span used when no calibration has been stored yet. Real values
 // are captured by the on-screen calibration routine and kept in NVS.

@@ -17,8 +17,8 @@
  *
  * ---- Why rows are checksummed ---------------------------------------------
  * A full-frame push is expensive on SPI: 320x240x2 bytes at 55MHz is ~22ms
- * (~45fps ceiling), and 480x320x2 at 27MHz is ~91ms - about 11fps, which would
- * make the 4.0" board unusable. Clock animations typically change a small
+ * (~45fps ceiling), and 480x320x2 at 40MHz is ~61ms - about 16fps, which would
+ * make the 4.0" board sluggish. Clock animations typically change a small
  * fraction of the screen per frame, so display() hashes each canvas row and
  * pushes only the rows that actually changed.
  *
@@ -39,7 +39,17 @@ extern TFT_eSPI tft;
 
 class CydDisplay : public GFXcanvas16 {
 public:
-  CydDisplay() : GFXcanvas16(CANVAS_WIDTH, CANVAS_HEIGHT) {}
+  // The buffer is deliberately NOT allocated here. `display` is a global, and
+  // globals are constructed before FreeRTOS has added the startup-stack regions
+  // to the heap. The 4.0" canvas - 76.8KB that must be one contiguous block -
+  // failed to allocate at that point. allocateBuffer() runs at the top of
+  // setup() instead.
+  CydDisplay() : GFXcanvas16(CANVAS_WIDTH, CANVAS_HEIGHT, false) {}
+
+  // Allocate the canvas buffer, logging the largest free heap block either way.
+  // Call once, as early in setup() as possible. Safe to call again: returns true
+  // if a buffer is present afterwards.
+  bool allocateBuffer();
 
   // Bring up the panel, set landscape rotation and start the backlight PWM.
   // Returns false if the canvas allocation failed.
@@ -74,7 +84,7 @@ public:
   // ---- Sprite magnification -------------------------------------------------
   // Draw the sprite art larger without touching the art itself.
   //
-  // Character sprites are fixed pixel work - Mario is 8x10 - drawn by hundreds
+  // Character sprites are fixed pixel work - Mario is 12x16 - drawn by hundreds
   // of individual fillRect and drawPixel calls. Multiplying coordinates at
   // every one of those call sites would be a huge, error-prone edit, so the
   // magnification lives here instead: while a scale is set, each drawn pixel

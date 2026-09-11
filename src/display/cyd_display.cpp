@@ -6,6 +6,8 @@
 
 #include "cyd_display.h"
 
+#include <esp_heap_caps.h>
+
 #include "debug.h"
 
 namespace {
@@ -30,14 +32,6 @@ inline uint32_t hashRow(const uint16_t *row, int count) {
 }  // namespace
 
 bool CydDisplay::begin() {
-  // GFXcanvas16 allocates in its constructor at static-init time; a null buffer
-  // here means the heap could not satisfy CANVAS_BYTES.
-  if (getBuffer() == nullptr) {
-    DBG_ERROR("Canvas allocation failed (%u bytes for %dx%d)",
-              (unsigned)CANVAS_BYTES, CANVAS_WIDTH, CANVAS_HEIGHT);
-    return false;
-  }
-
   tft.init();
   tft.setRotation(TFT_ROTATION);
 
@@ -56,6 +50,17 @@ bool CydDisplay::begin() {
   ledcSetup(BACKLIGHT_LEDC_CHANNEL, BACKLIGHT_LEDC_FREQ, BACKLIGHT_LEDC_BITS);
   ledcAttachPin(TFT_BL, BACKLIGHT_LEDC_CHANNEL);
   setBrightness8(backlight);
+
+  // The panel is up and lit, so a failure below is visible. The canvas is
+  // normally allocated at the top of setup(); try again in case begin() is ever
+  // reached first. Without a canvas nothing the clock draws can reach the panel,
+  // so paint it solid red rather than leave it blank - a blank screen and a
+  // failed allocation otherwise look identical. (TFT_eSPI's GLCD font is not
+  // loaded in this build, so there is no text to put on it.)
+  if (getBuffer() == nullptr && !allocateBuffer()) {
+    tft.fillScreen(TFT_RED);
+    return false;
+  }
 
   // Sanity-check the geometry rather than silently letterboxing or overdrawing.
   if (tft.width() != PANEL_WIDTH || tft.height() != PANEL_HEIGHT) {
@@ -170,4 +175,35 @@ void CydDisplay::drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color) 
   for (int16_t dx = 0; dx < spriteScale; dx++) {
     GFXcanvas16::drawFastVLine(tx + dx, ty, h * spriteScale, color);
   }
+}
+
+// ---- Canvas allocation ------------------------------------------------------
+// See the constructor in cyd_display.h for why this is not done there. The
+// largest free block is what decides success - total free heap can be well
+// above CANVAS_BYTES while no single block is big enough - so it is logged on
+// success as well as failure, to show how much headroom a board actually has.
+
+bool CydDisplay::allocateBuffer() {
+  if (buffer != nullptr) {
+    return true;
+  }
+
+  const size_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+  const size_t freeBytes = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+
+  buffer = static_cast<uint16_t *>(heap_caps_malloc(CANVAS_BYTES, MALLOC_CAP_8BIT));
+  if (buffer == nullptr) {
+    DBG_ERROR("Canvas allocation failed: need %u bytes in one block, largest free "
+              "block is %u (of %u free)", (unsigned)CANVAS_BYTES,
+              (unsigned)largest, (unsigned)freeBytes);
+    return false;
+  }
+
+  // Let GFXcanvas16's destructor free it, as it would a buffer it allocated.
+  buffer_owned = true;
+  memset(buffer, 0, CANVAS_BYTES);
+  DBG_INFO("Canvas allocated: %u bytes (largest free block was %u of %u free)",
+           (unsigned)CANVAS_BYTES, (unsigned)largest, (unsigned)freeBytes);
+  forceFullRepaint();
+  return true;
 }

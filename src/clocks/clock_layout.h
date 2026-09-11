@@ -58,14 +58,13 @@ constexpr int DIGIT_X_3 = TIME_X + 3 * DIGIT_W;
 constexpr int DIGIT_X_4 = TIME_X + 4 * DIGIT_W;
 
 // ---- Sprite magnification --------------------------------------------------
-// Character sprites are fixed 8x10-ish pixel art. Drawn 1:1 against a digit row
-// this much larger they read as tiny: upstream's Mario was 58% of the digit
-// height, at 1:1 here he is 31%. SPRITE_SCALE magnifies the art at draw time
+// Character sprites are fixed pixel art - Mario is 12x16 - so they cannot simply
+// be redrawn larger. SPRITE_SCALE magnifies the art at draw time
 // (CydDisplay::setSpriteScale) without touching the art or its call sites.
 //
-// A third of the text size puts the 16px-tall Mario at ~50% of the digit height
-// at 160x120 and ~67% at 240x160. Upstream's cruder 10px figure was 42% of its
-// digit row, so this is a little larger as well as far more detailed.
+// A third of the text size puts Mario at ~50% of the digit height at 160x120
+// and ~67% at 240x160. Upstream's cruder 10px figure was 42% of its digit row,
+// so this is a little larger as well as far more detailed.
 // Override per board env to taste.
 #ifndef SPRITE_SCALE
 #define SPRITE_SCALE (DIGIT_TEXT_SIZE / 3)
