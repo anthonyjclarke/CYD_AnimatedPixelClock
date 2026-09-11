@@ -1,7 +1,7 @@
 # CYD_AnimatedPixelClock
 
 <!-- Update version badge when FIRMWARE_VERSION changes in include/config.h -->
-![Version](https://img.shields.io/badge/version-1.2.0--dev-blue.svg)
+![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-ESP32-green.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-6.x-orange.svg)
 ![Board](https://img.shields.io/badge/CYD-2.4%22%20%7C%202.8%22%20%7C%204.0%22-yellow.svg)
@@ -59,7 +59,8 @@ NTP and weather. See the [Roadmap](#roadmap) for what is still unverified.
 | Touch, own bus and shared bus           | Verified on 320×240 and 480×320            |
 | Web UI                                  | In use on hardware; not every page tested  |
 | Clock styles, all 14                    | Seen running; not each judged individually |
-| LDR auto-brightness, RGB status LED     | Built; not yet verified on hardware        |
+| RGB status LED                          | Verified on hardware                       |
+| LDR auto-brightness                     | Built; not yet verified on hardware        |
 | `Serial.print` to `DBG_*` conversion    | Complete                                   |
 | Archive of out-of-scope upstream assets | Complete                                   |
 
@@ -67,9 +68,9 @@ Build sizes, all three well inside a 1.792 MB OTA slot:
 
 | Environment    | Flash               | Static RAM       |
 | :------------- | :------------------ | :--------------- |
-| `esp32-cyd-24` | 1,411,013 B (76.9%) | 71,548 B (21.8%) |
-| `esp32-cyd-28` | 1,411,013 B (76.9%) | 71,548 B (21.8%) |
-| `esp32-cyd-40` | 1,403,157 B (76.5%) | 81,532 B (24.9%) |
+| `esp32-cyd-24` | 1,412,753 B (77.0%) | 71,596 B (21.8%) |
+| `esp32-cyd-28` | 1,412,753 B (77.0%) | 71,596 B (21.8%) |
+| `esp32-cyd-40` | 1,405,413 B (76.6%) | 81,596 B (24.9%) |
 
 The canvas is allocated from the heap on top of that: 38.4 KB on the 2.4″ and
 2.8″, 76.8 KB on the 4.0″.
@@ -91,12 +92,14 @@ controller. No external wiring is required.
 | SPI freq  | 55 MHz                    | 55 MHz                    | 40 MHz                    |
 | Backlight | GPIO 21                   | GPIO 21                   | GPIO 27                   |
 | LDR       | GPIO 34                   | GPIO 34                   | not populated             |
-| RGB LED   | GPIO 4 / 16 / 17          | GPIO 4 / 16 / 17          | not populated             |
+| RGB LED   | GPIO 4 / 16 / 17          | GPIO 4 / 16 / 17          | GPIO 22 / 16 / 17         |
 
 † The 2.4″ ships in two revisions. **R** boards fit a resistive XPT2046 and work
 as-is. **C** boards fit a capacitive CST820 on I2C, which is not supported —
 build with `-DHAS_RESISTIVE_TOUCH=0` so the driver never claims those GPIOs.
 Everything except tap-to-change-style works either way.
+
+RGB LED pins are listed red / green / blue; the 4.0″ moves red to GPIO 22.
 
 ‡ On the 4.0″ the XPT2046 shares the display's SPI lines, so TFT_eSPI drives it
 (`TOUCH_CS=33`); on the 2.4″ and 2.8″ it has dedicated pins and its own driver
@@ -219,6 +222,12 @@ first.
 Tap anywhere on the screen to move to the next clock style; the choice is saved.
 Tapping and Cycle All both skip the Weather style until a location is set.
 
+Set the weather location by searching for a city under the Weather style's
+settings, then press **Save**; the place name is kept alongside its coordinates.
+Weather is only fetched while it can be shown — with the Weather style selected,
+or in a Cycle All rotation that includes it — so after a reboot on another style
+the Weather screen takes a few seconds to fill in when you switch to it.
+
 A factory reset at `http://pixelclock.local/reset` erases every setting **and**
 the WiFi credentials, and the device restarts as the `PixelClock-Setup` access
 point.
@@ -256,7 +265,7 @@ At the default level a session looks like this:
 [INFO] Board    ESP32 CYD 2.8" (ILI9341)
 [INFO] Canvas   160x120 @ x2 -> panel 320x240 (38400 bytes)
 [INFO] Sprites  x1, character band 20px, digits 24x32
-[INFO] Hardware touch XPT2046 on own VSPI, LDR GPIO34, RGB LED GPIO4/16/17
+[INFO] Hardware touch XPT2046 on own VSPI, LDR GPIO34, RGB LED R4/G16/B17
 [INFO] Debug    level 3 (1=err 2=warn 3=info 4=verbose)
 [INFO] =======================================================
 [INFO] Touch: tap at canvas(88,54) raw(2210,1875) pressure 412
@@ -298,8 +307,9 @@ a desk. Anything genuinely broken is listed as a bug and comes first.
   Invaders, Weather, Bomberman, Matrix Rain and Large have been seen running.
   Bomberman's corridor spacing and TRON's approach waypoints are the loosest
   layout inferences and the most likely to need adjusting by eye.
-- **LDR auto-brightness and the RGB status LED are unverified.** The LDR
-  thresholds in `include/config.h` were estimated, not measured.
+- **LDR auto-brightness is unverified.** Its thresholds in `include/config.h`
+  were estimated, not measured. The RGB status LED was confirmed on hardware in
+  1.2.0; its boot self-test flashes red, green, blue.
 - **No touch calibration UI.** Bounds are read from and written to NVS, but
   nothing captures them. Tap-to-change-style needs no accuracy, so this only
   matters if touch grows a real interface.

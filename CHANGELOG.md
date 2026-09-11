@@ -23,9 +23,63 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
 
 ---
 
-## [Unreleased] — 1.2.0-dev
+## [1.2.0] 12-09-2026
 
-Nothing yet. See the [Roadmap](README.md#roadmap) for what is queued.
+Fixes found running 1.1.0 on hardware: the RGB status LED (wrong pins on the
+2.4″/2.8″, never driven on the 4.0″), the weather degree sign, weather settings
+that looked lost after a reboot, three settings that genuinely were, and web UI
+text left over from upstream's PC-monitor mode. Confirmed on hardware.
+
+### Changed
+
+- **The RGB status LED flashes red, green, blue once at boot.** A connected
+  clock leaves the LED dark by design, so there was no way to see whether it
+  worked — and on every board it did not work as intended (below).
+
+### Fixed
+
+- **Weather: the degree sign sat on the last temperature digit.** Its position
+  assumed 18 px per character, upstream's size-3 font, but the digits are size 4
+  (24 px) on the 2.4″/2.8″ and size 6 (36 px) on the 4.0″ — so the overlap grew
+  with the digit count and the board. It is now placed from where the digits
+  actually end, one digit pixel clear of the last one (`WTEMP_UNIT_GAP`).
+- **RGB LED red and blue were swapped on the 2.4″ and 2.8″.** Red is GPIO 4 and
+  blue GPIO 17, as in the board pinouts and every other CYD project here; the
+  pins came from a note with the two reversed, so the red "WiFi down" pulse
+  would have shown blue.
+- **The 4.0″'s RGB LED was treated as absent.** The ESP32-32E fits one — red on
+  GPIO 22, green 16, blue 17 (LCDwiki E32R40T) — which the firmware never drove,
+  the likeliest reason it glowed red at boot. It is now driven like the others,
+  and its web UI setting takes effect.
+- **The weather location looked lost after a reboot.** The coordinates were
+  saved correctly — a device read back after a power cycle still had them — but
+  the place name searched for was never stored, so the "Find your location" box
+  came back empty with nothing saying where the clock was set. The name is now
+  saved with the coordinates (`weatherPlace`, included in export and import) and
+  shown as "Saved location" after a reload. Typing coordinates by hand clears it.
+- **A location search did not mark the form unsaved.** Filling the coordinates
+  from code fires no input event, so the save bar kept saying "All saved" and it
+  was easy to leave without saving. A search hit now marks the form dirty and
+  says to press Save.
+- **Brightness, colon blink mode and Mario bounce height reset on every
+  reboot.** Upstream's `saveSettings()` wrote them; the port dropped all three
+  when trimming settings, so they were only ever written as first-boot defaults.
+- **The web UI status readout always said "PC offline".** It showed whether the
+  PC companion app was sending stats — a mode this port does not build — so with
+  nothing ever sending `pcOnline` it read "PC offline · clock" with a grey dot,
+  as if the device were down. It now reads "Online" with the selected clock style
+  (or "display off"), and "Offline" if the device stops answering.
+  `/api/status` gains `clockStyleName` for it.
+- **Diagnostics showed "Storage: NaN / NaN KiB free" and "Animation: idle".**
+  Both came from the archived `.pca` animation player, along with its playback
+  and upload error lines; all four are removed.
+- The factory reset warning listed "Metric labels & layout", which no longer
+  exist, and omitted touch calibration, which a reset does erase. `/api/info`
+  reported `model` as `AnimatedPixelClock`; it now uses the project name, as
+  mDNS does.
+- **The LED never showed amber for the setup portal.** The portal waits inside
+  `setup()`, before `loop()` — the only place the LED was updated — ever runs.
+  The portal callback now updates it.
 
 ---
 
