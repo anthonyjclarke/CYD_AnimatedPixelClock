@@ -8,7 +8,7 @@
 //   FAVICON_SVG - brand mark, served from /favicon.svg and /favicon.ico.
 //
 // Keeping CSS/JS on their own cacheable routes leaves PAGE_HTML small so peak
-// heap during the token-substituted render stays low on the ESP32-C3.
+// heap during the token-substituted render stays low on the ESP32.
 #pragma once
 #include <Arduino.h>
 
@@ -27,7 +27,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AnimatedPixelClock - Config Portal v%VER%</title>
+<title>%PROJ_NAME% - Config Portal v%VER%</title>
 <meta name="theme-color" content="#f4f0e7">
 <script>(function(){try{var a=localStorage.getItem('soled_accent');if(a)document.documentElement.setAttribute('data-accent',a);var m=localStorage.getItem('soled_mode');if(m){document.documentElement.setAttribute('data-mode',m);var mt=document.querySelector('meta[name=theme-color]');if(mt)mt.setAttribute('content',m==='dark'?'#161512':'#f4f0e7');}}catch(e){}})();</script>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -103,8 +103,9 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
     </div>
 
     <div class="about">
-      <span class="line">AnimatedPixelClock &middot; <b>v%VER%</b></span>
-      <a href="https://github.com/Keralots/AnimatedPixelClock" target="_blank" rel="noopener"><span class="gh" aria-hidden="true"></span>github.com/Keralots</a>
+      <span class="line">%PROJ_NAME% &middot; <b>v%VER%</b></span>
+      <a href="%PROJ_REPO%" target="_blank" rel="noopener"><span class="gh" aria-hidden="true"></span>%PROJ_REPO_LABEL%</a>
+      <span class="line">Based on <a href="%UP_REPO%" target="_blank" rel="noopener">%UP_NAME%</a> by %UP_AUTHOR%</span>
     </div>
   </aside>
 
@@ -116,11 +117,11 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
         <section class="page active" data-page="clock">
           <div class="page-header">
             <h1 class="page-h1">Clock</h1>
-            <p class="page-lede">Pick the idle animation shown when your PC is asleep, and how the time and date are formatted.</p>
+            <p class="page-lede">Pick the clock animation, and how the time and date are formatted.</p>
           </div>
 
           <div class="card">
-            <h2 class="card-title">Idle clock</h2>
+            <h2 class="card-title">Clock style</h2>
             <div class="field">
               <label class="field-label" for="clockStyle">Clock style</label>
               <div class="select-wrap">
@@ -759,7 +760,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
             <label class="check-row standalone" style="margin-top:14px">
               <input type="checkbox" name="enableScheduledOff" id="enableScheduledOff" %CHK_ENABLESCHEDULEDOFF%>
               <span class="check-box" aria-hidden="true"></span>
-              <span class="check-text"><strong>Scheduled power off</strong><span class="ct-hint">Turn the panel fully dark during set hours to spare the LEDs. Home Assistant can also toggle it live via /api/display/on and /api/display/off.</span></span>
+              <span class="check-text"><strong>Scheduled power off</strong><span class="ct-hint">Turn the backlight fully off during set hours. Home Assistant can also toggle it live via /api/display/on and /api/display/off.</span></span>
             </label>
             <div class="subcard" id="offFields" style="display:%DSP_ENABLESCHEDULEDOFF%">
               <div class="grid-2">

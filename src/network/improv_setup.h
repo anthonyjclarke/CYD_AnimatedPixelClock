@@ -1,8 +1,8 @@
 /*
- * AnimatedPixelClock - Improv-Serial WiFi Provisioning (Web Flasher)
+ * CYD_AnimatedPixelClock - Improv-Serial WiFi Provisioning
  *
- * Non-blocking Improv-Serial setup window used by the browser web flasher
- * (docs/). After flashing, ESP Web Tools probes the device for
+ * Non-blocking Improv-Serial setup window for browser-based provisioning such
+ * as ESP Web Tools. After flashing, the browser probes the device for
  * Improv-Serial and presents a "Configure WiFi" dialog right in the browser
  * tab - the user picks their network and the credentials are pushed over USB.
  *

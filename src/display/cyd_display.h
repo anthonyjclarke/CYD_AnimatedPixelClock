@@ -34,7 +34,7 @@
 
 #include "config.h"
 
-// The panel itself. Defined in display.cpp; the canvas pushes pixels into it.
+// The panel itself. Defined in main.cpp; the canvas pushes pixels into it.
 extern TFT_eSPI tft;
 
 class CydDisplay : public GFXcanvas16 {

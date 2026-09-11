@@ -1,10 +1,9 @@
 /*
- * AnimatedPixelClock - Sprite color slots
+ * CYD_AnimatedPixelClock - Sprite color slots
  *
- * Named color slots for the user-editable sprite colors (HUB75 build only).
- * Kept dependency-free (no display.h) so config.h can include it to size the
- * Settings.spriteColors[] array. The SPRITE_COLOR() accessor macro lives in
- * display.h (it needs DISPLAY_WHITE for the OLED fallback).
+ * Named color slots for the user-editable sprite colors. Kept dependency-free
+ * (no display.h) so globals.h can include it to size the Settings.spriteColors[]
+ * array. The SPRITE_COLOR() accessor macro lives in display.h.
  *
  * APPEND-ONLY: add new slots immediately before COL_COUNT. NEVER insert or
  * reorder existing slots - the values are persisted to NVS indexed by enum
@@ -59,7 +58,7 @@ enum ColorSlot {
   COL_STAR,
   COL_MUSHROOM,
   COL_FIREBALL,
-  // PC-monitor stats screen (not a clock style)
+  // PC-monitor stats screen - archived; slots kept so saved indices stay put
   COL_STAT_TEXT,     // metric lines, clock timestamp, config hints
   COL_STAT_BAR,      // progress-bar fill
   COL_STAT_BAR_BG,   // progress-bar outline
@@ -86,7 +85,7 @@ enum ColorSlot {
   COL_WEATHER_ICON,    // primary icon body (sun disc, cloud)
   COL_WEATHER_ACCENT,  // secondary effects (rain, snow, lightning, fog)
   COL_WEATHER_TEMP,    // big temperature readout
-  // Audio spectrum visualizer (forced mode, not a clock style)
+  // Audio spectrum visualizer - archived; slots kept so saved indices stay put
   COL_VIZ_LOW,         // bar gradient: bottom zone
   COL_VIZ_MID,         // bar gradient: middle zone
   COL_VIZ_PEAK,        // bar gradient: top zone + peak-hold dots

@@ -67,7 +67,7 @@ void improvSetupBegin(uint32_t windowMs) {
   String deviceName = buildDeviceName();
   improvSerial.setDeviceInfo(
       detectChipFamily(),
-      "AnimatedPixelClock",
+      PROJECT_NAME,
       FIRMWARE_VERSION,
       deviceName.c_str(),
       "http://{LOCAL_IPV4}/");

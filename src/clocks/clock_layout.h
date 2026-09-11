@@ -9,7 +9,7 @@
  * block rather than another pass over fourteen files.
  *
  * ---- What scales and what does not -----------------------------------------
- * Both boards render at DISPLAY_SCALE 2, so one logical pixel is the same
+ * Every board renders at DISPLAY_SCALE 2, so one logical pixel is the same
  * physical size on each. That splits the metrics in two:
  *
  *   Sprites (Mario, ghosts, invaders, the dino) are fixed pixel art, so they

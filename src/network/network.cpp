@@ -220,7 +220,7 @@ void initMDNS() {
   if (MDNS.begin(settings.deviceName)) {
     MDNS.addService("http", "tcp", 80);
     MDNS.addServiceTxt("http", "tcp", "version", FIRMWARE_VERSION);
-    MDNS.addServiceTxt("http", "tcp", "model", "AnimatedPixelClock");
+    MDNS.addServiceTxt("http", "tcp", "model", PROJECT_NAME);
     MDNS.addServiceTxt("http", "tcp", "mac", WiFi.macAddress().c_str());
     DBG_INFO("mDNS started: %s.local", settings.deviceName);
   } else {

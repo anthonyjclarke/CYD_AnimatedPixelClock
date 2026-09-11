@@ -14,8 +14,8 @@ Three envs, all plain `esp32dev`, 4 MB, no PSRAM: `esp32-cyd-24` and
 `esp32-cyd-28` (ILI9341 320×240, backlight GPIO 21, SPI 55 MHz) and
 `esp32-cyd-40` (ESP32-32E, ST7796S 480×320, backlight GPIO 27, SPI 40 MHz).
 The display is on HSPI's native pins. Touch is an XPT2046 with its own VSPI pins
-on the 2.4″/2.8″, but on the display's SPI lines on the 4.0″ (per AuroraDemo_CYD;
-unconfirmed here) — see `TOUCH_CS`. Capacitive boards: `HAS_RESISTIVE_TOUCH=0`.
+on the 2.4″/2.8″, but on the display's SPI lines on the 4.0″ (confirmed on an
+ESP32-32E) — see `TOUCH_CS`. Capacitive boards: `HAS_RESISTIVE_TOUCH=0`.
 
 ## Rendering model — the central architectural decision
 
@@ -64,6 +64,9 @@ TRON and Bomberman draw their own digits and derive their own row geometry.
   being row-major and row hashing breaks. Landscape comes from `tft.setRotation`.
 - **Never narrow Tetris' well row back to `uint32_t`.** 40 columns at 160 px, 60
   at 240 — `TetRow` is `uint64_t`, with `TET_FULLROW` and `tet_clear_mask`.
+- **Never drop the upstream credit.** The web UI and `/api/info` name this repo
+  *and* "Based on AnimatedPixelClock by Keralots", from `PROJECT_*` and
+  `UPSTREAM_*` in `include/config.h`; `LICENSE` keeps both copyrights.
 - **Never restore `.github/FUNDING.yml`** — those links are the upstream author's.
 
 ## Deliberate deviations from the global rules

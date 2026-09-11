@@ -23,9 +23,24 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
 
 ---
 
-## [Unreleased] — 1.1.0-dev
+## [1.1.0] 11-09-2026
+
+**Initial working release.** Verified on a 320×240 ILI9341 CYD and a 480×320
+ST7796S ESP32-32E: the display path, touch on both wirings, the web UI, WiFi, NTP
+and weather. 1.0.0 ran on one board with touch that later stopped; this release
+carries the fixes that got every board at hand working. What is still unverified
+is listed in the [Roadmap](README.md#roadmap).
 
 ### Added
+
+- **The device now credits this port and the original.** The web UI sidebar
+  linked only to Keralots/AnimatedPixelClock, as if the device were running the
+  original. It now names `CYD_AnimatedPixelClock` with a link to this repository,
+  followed by "Based on AnimatedPixelClock by Keralots" linking upstream; the
+  page title follows. `/api/info` gains `project`, `repository`, `basedOn` and
+  `upstreamRepository`. Improv-Serial and the mDNS `model` record, which hold one
+  name, report `CYD_AnimatedPixelClock`. All of it comes from the `PROJECT_*`
+  and `UPSTREAM_*` constants in `include/config.h`.
 
 - **A clock-style change is now logged from every route that can cause one.**
   Only the touch path logged it; the HTTP API and the Cycle All rotation changed
@@ -50,7 +65,25 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
 - Minute-change animation trigger at verbose level, with the number of digits
   about to animate.
 
+### Changed
+
+- The 2.4″ reports itself as a 2.4″ in the boot banner, web UI and `/api/info`
+  instead of borrowing the 2.8″'s name. It still defines `BOARD_CYD_28`, because
+  it shares that board's LDR and RGB LED.
+
 ### Fixed
+
+- **`include/secrets.h` was never included.** The README and the example file
+  said to put hardcoded WiFi credentials there, but nothing included it, so
+  following the instructions silently did nothing. `config.h` now includes it
+  when present and maps `SECRET_WIFI_SSID` / `SECRET_WIFI_PASS` onto the
+  hardcoded-WiFi settings. Checked with a throwaway `secrets.h`: its SSID is in
+  the binary with the file and absent without it. The example no longer lists an
+  OTA password and weather API key that nothing reads.
+- **Web UI wording left over from upstream.** The Clock page offered "the idle
+  animation shown when your PC is asleep" under an "Idle clock" heading, the
+  Maintenance page gave the display model as "HUB75 Matrix", and the schedule
+  hint spoke of sparing the LEDs. Each now describes this device.
 
 - **The 4.0″ showed nothing: its canvas could not be allocated.** `CydDisplay`
   allocated its buffer in its constructor, which for a global runs before
@@ -58,16 +91,16 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
   (38.4 KB) fitted there; the 4.0″ canvas (76.8 KB in one block, on a build with
   10 KB more static data) did not, so `begin()` returned before initialising the
   panel. The buffer is now allocated at the top of `setup()`. The log reports
-  the largest free heap block either way, which will confirm the cause on the
-  next flash, and if allocation ever fails again the panel is painted solid red
-  instead of being left blank.
+  the largest free heap block either way, and if allocation ever fails again the
+  panel is painted solid red instead of being left blank. Confirmed on a 4.0″
+  ESP32-32E.
 - **Touch on the 4.0″ was wired as if it were a 2.8″.** On the ESP32-32E the
   XPT2046 is on the display's SPI lines, not the dedicated CLK 25 / MISO 39 /
   MOSI 32 pins, so reads came back as zeros. The touch module now has two
   backends chosen by `TOUCH_CS`: XPT2046_Touchscreen on VSPI for the 2.4″ and
   2.8″, and TFT_eSPI's own touch support on the shared bus for the 4.0″, which
   now defines `TOUCH_CS=33`. Press and release thresholds match AuroraDemo_CYD
-  on the same board. Not yet confirmed on hardware.
+  on the same board. Confirmed on a 4.0″ ESP32-32E.
 - **Impossible touch reads became phantom taps.** A controller that is not
   answering reads pressure 4095 with coordinates at 0 or full scale. Two boards
   did exactly that, and each time the read changed the clock style and saved
@@ -98,7 +131,6 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
 - **The clock picker called style 9 "Custom rotation"** while two hints on the
   same page, the logs, the README and upstream all called it "Cycle All". Now
   "Cycle All" everywhere, and the rotation card is headed to match.
-
 - **Factory reset erased nothing.** `handleReset()` still opened the upstream
   `"pcmonitor"` NVS namespace, which this port renamed to `"pixelclock"` — so a
   reset cleared an empty legacy namespace, wiped the WiFi credentials, rebooted,
@@ -188,8 +220,8 @@ seen running but not judged style by style. See **Port status** in `README.md`.
   Assistant automations; `/api/mode/ambient` and `/api/mode/viz` are gone.
 - **All 14 clock styles re-laid-out** for the larger canvas. Digit rows now hold
   upstream's ~70%-of-width proportion (75%) at whatever size the board needs;
-  sprites keep their logical size, so they stay the same physical size on both
-  panels. The vertical composition is anchored on the character band staying one
+  sprite art is magnified at draw time rather than redrawn (see *sprite
+  magnification* below). The vertical composition is anchored on the character band staying one
   sprite tall, because Mario bounces a digit from directly underneath it.
 - Tetris' well grew from 5 rows to 11 (13 → 25 in small-clock mode). Its row
   mask had to widen from `uint32_t` to `uint64_t`: a 4 px cell over a 160 px
@@ -199,14 +231,14 @@ seen running but not judged style by style. See **Port status** in `README.md`.
 - Pac-Man, TRON and Bomberman draw their own digits — a pellet grid, seven
   segments and bricks respectively — so each derives its own row geometry
   rather than reusing `DIGIT_X`.
-- Static RAM rose to 21.7% / 24.7% (from 20.0% / 20.1%), almost entirely the
+- Static RAM rose to 21.8% / 25.0% (from 20.0% / 20.1%), almost entirely the
   larger Snake flow-field and Tetris well arrays.
 - Backlight PWM (`ledc`, GPIO 21 on the 2.8″, GPIO 27 on the 4.0″) now backs
   `setBrightness8()`, so upstream's scheduled dimming and nightly-off windows
   work unmodified against LCD hardware.
 - Logical canvas is 160×120 on the 2.8″ and 240×160 on the 4.0″, each scaled ×2
-  to fill its panel exactly. Upstream drew 128×64; clock-style layouts are being
-  reworked to the larger canvas rather than letterboxed.
+  to fill its panel exactly. Upstream drew 128×64; the clock styles were
+  re-laid-out for the larger canvas rather than letterboxed.
 
 ### Changed — Mario redrawn
 
@@ -236,22 +268,22 @@ seen running but not judged style by style. See **Port status** in `README.md`.
 
 ### Added — sprite magnification
 
-- `SPRITE_SCALE` build option. Character art is fixed 8×10-ish pixel work, so it
-  cannot simply be redrawn larger; against a digit row this much bigger it read
-  as tiny — Mario was 31% of the digit height where upstream had him at 58%.
+- `SPRITE_SCALE` build option. Character art is fixed pixel work, so it cannot
+  simply be redrawn larger, and drawn 1:1 against a digit row this much bigger it
+  read as tiny.
   The magnification happens at draw time in `CydDisplay`, which overrides the
   three primitives every GFX shape funnels through and expands each drawn pixel
   into a `scale × scale` block about an anchor. The art and its ~150 call sites
   are untouched.
-- Defaults to half the digit text size — ×2 on a 160×120 canvas, ×3 on 240×160 —
-  putting Mario at 62% of digit height on both, close to the upstream
-  proportion. Set `-DSPRITE_SCALE=1` in a board env to restore the original 1:1
-  art.
+- Defaults to a third of the digit text size — ×1 on a 160×120 canvas, ×2 on
+  240×160 — which puts the 12×16 Mario at half the digit height on the first and
+  two-thirds on the second. Upstream's figure was 42% of its digit row. Override
+  it per board env.
 - `CHAR_BAND` and `MARIO_HEAD_OFFSET` derive from the scale, so a magnified
   character still reaches the underside of the digit row to bounce it; the `+4`
   in `CHAR_BAND` preserves upstream's 4 px of jump at any scale.
-- A `static_assert` rejects a scale too large for the canvas rather than
-  clipping the day-of-week row off the bottom — ×3 fits 240×160 but not 160×120.
+- A `static_assert` rejects a scale too large for the canvas: ×4 on 160×120 and
+  ×6 on 240×160, where the digit row would start above the top edge.
 - Only Mario's sprites are magnified so far. The other styles' characters still
   draw 1:1; the mechanism is in place for them.
 - The vertical layout is now built bottom-up — text rows, then the character
@@ -278,15 +310,15 @@ rather than "conservative". Audited in one pass:
 
 Defaults changed, each because the canvas moved rather than as a taste call:
 
-| Setting | Was | Now | Why |
-|:--|:--|:--|:--|
-| Asteroids / Dino / Matrix / Snake — show date | off | **on** | Cost 16% of a 64 px panel, 8% here, and the sky band above is empty |
-| Asteroids rock count | 2 | **3** | Play area is 2.3× larger |
-| Pac-Man patrol pellets | 8 | **10** | Patrol row is 25% wider |
-| Snake body length | 8 | **10** | Arena grew from 512 to 1200 cells |
-| Pong paddle width | 20 | **25** | Canvas is 25% wider |
-| Space patrol speed | 0.5 | **0.7** | Patrol span grew 36%, so a sweep took that much longer |
-| Mario smooth animation | off | **on** | The sprite now has four real frames including a standing pose |
+| Setting                                   | Was | Now | Why                                |
+| :---------------------------------------- | :-- | :-- | :--------------------------------- |
+| Show date: Asteroids, Dino, Matrix, Snake | off | on  | Cost 16% of a 64 px panel, 8% here |
+| Asteroids rock count                      | 2   | 3   | Play area is 2.3× larger           |
+| Pac-Man patrol pellets                    | 8   | 10  | Patrol row is 25% wider            |
+| Snake body length                         | 8   | 10  | Arena grew from 512 to 1200 cells  |
+| Pong paddle width                         | 20  | 25  | Canvas is 25% wider                |
+| Space patrol speed                        | 0.5 | 0.7 | Patrol span grew 36%               |
+| Mario smooth animation                    | off | on  | Sprite now has four real frames    |
 
 Left alone deliberately: Matrix density (the grid fix already raised it in
 absolute terms), Tetris small-clock mode (a large behavioural change, not a
@@ -302,7 +334,6 @@ Dino clouds — all genuine taste settings that the canvas change does not touch
   `static_assert` that guards them tautological. Six new slots were added with
   no defaults and the build passed. The extern is now unbounded, the assert is
   meaningful, and it was verified to fire by deleting an entry.
-
 - **Colours rendered byte-swapped on the panel.** `GFXcanvas16` stores RGB565 in
   host order, but TFT_eSPI defaults to `_swapBytes = false` and pushes an image
   array to the display byte-for-byte, and the panel wants big-endian. Yellow

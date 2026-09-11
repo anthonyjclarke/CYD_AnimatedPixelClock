@@ -119,6 +119,10 @@ void setupWebServer() {
 void handleDeviceInfo() {
  JsonDocument doc;
  doc["version"] = FIRMWARE_VERSION;
+ doc["project"] = PROJECT_NAME;
+ doc["repository"] = PROJECT_REPO_URL;
+ doc["basedOn"] = String(UPSTREAM_PROJECT) + " by " + UPSTREAM_AUTHOR;
+ doc["upstreamRepository"] = UPSTREAM_REPO_URL;
  doc["mac"] = WiFi.macAddress();
  doc["ip"] = WiFi.localIP().toString();
  doc["hostname"] = String(settings.deviceName) + ".local";
@@ -396,8 +400,8 @@ static String rgb565ToHex(uint16_t c) {
 }
 
 // One editable color per row. `style` = the clock style this element belongs to
-// (its picker shows inside that style's settings subcard), -2 = PC-monitor stats
-// (own card on the Display-layout page, not a clock style). The per-style time
+// (its picker shows inside that style's settings subcard), -2 = the archived
+// PC-monitor stats screen, whose rows are no longer rendered. The per-style time
 // digit color is emitted separately (buildDigitRow) so it can also cover styles
 // that have no settings subcard. APPEND rows as modes are colored.
 struct SpriteColorRow { uint8_t slot; int style; const char* label; };
@@ -506,8 +510,7 @@ static const int DIGIT_STYLES[] = {0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
 
 // The single per-page "Colors" card on the Clock page: the selected style's sprite
 // rows (in a subcard div toggled by syncClockPanels), then that style's time-digit
-// color row (class "digitc", toggled by clock style value), then reset. PC-monitor
-// stat colors live on the Display-layout page (buildPcMetricsColorCard), not here.
+// color row (class "digitc", toggled by clock style value), then reset.
 static String buildColorsCard() {
   String out = F("<div class=\"card\"><h2 class=\"card-title\">Colors</h2>");
   for (size_t i = 0; i < sizeof(STYLE_CARDS) / sizeof(STYLE_CARDS[0]); i++) {
@@ -533,15 +536,17 @@ static String buildColorsCard() {
   return out;
 }
 
-// Visualizer bar-gradient color rows (inside the Display page's viz card).
-
-// Oscilloscope color rows (same card, revealed only for that style).
-
-// PC-monitor stat colors as their own card (Display-layout page). "" if none.
 static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "V_CYCLECONFIG")) { out = settings.cycleConfig; return true; }
   // --- Header / identity ---
   if (!strcmp(n, "VER")) { out = String(FIRMWARE_VERSION); return true; }
+  // Credits: this port and the project it is based on. Keep both.
+  if (!strcmp(n, "PROJ_NAME")) { out = PROJECT_NAME; return true; }
+  if (!strcmp(n, "PROJ_REPO")) { out = PROJECT_REPO_URL; return true; }
+  if (!strcmp(n, "PROJ_REPO_LABEL")) { out = PROJECT_REPO_LABEL; return true; }
+  if (!strcmp(n, "UP_NAME")) { out = UPSTREAM_PROJECT; return true; }
+  if (!strcmp(n, "UP_AUTHOR")) { out = UPSTREAM_AUTHOR; return true; }
+  if (!strcmp(n, "UP_REPO")) { out = UPSTREAM_REPO_URL; return true; }
   if (!strcmp(n, "IP")) { out = WiFi.localIP().toString(); return true; }
   if (!strcmp(n, "BUILT")) { out = String(__DATE__); return true; }
   if (!strcmp(n, "ASSETVER")) {
@@ -550,12 +555,10 @@ static bool resolvePlaceholder(const char* n, String& out) {
     out = s; return true;
   }
   if (!strcmp(n, "HEAP")) { out = String(ESP.getFreeHeap() / 1024.0, 1); return true; }
-  if (!strcmp(n, "DISPLAYMODEL")) { out = "HUB75 Matrix"; return true; }
+  if (!strcmp(n, "DISPLAYMODEL")) { out = DISPLAY_MODEL; return true; }
   if (!strcmp(n, "BOARDNAME")) { out = BOARD_NAME; return true; }
   // The Clock-page "Colors" card (selected style's pickers + its digit color).
   if (!strcmp(n, "COLOR_GLOBAL")) { out = buildColorsCard(); return true; }
-  // PC-monitor stat colors card (Display-layout page).
-  // Visualizer bar colors (rows only; the card lives in web_pages.h).
 
   // --- Brightness help text and minimum ---
   if (!strcmp(n, "MINBRIGHT")) { out = String(isZeroBrightnessAllowed() ? 0 : 1); return true; }

@@ -22,14 +22,25 @@
 // Single source of truth for the firmware version: reported at boot, in the web
 // UI, /api/info, the mDNS TXT record and to Improv-Serial.
 //
-// Releases live on `main` and are tagged vX.Y.Z. This is `dev`, so the version
-// carries a -dev suffix - a development build must never be mistaken for the
-// release it will become. Drop the suffix only when cutting the release.
+// Releases live on `main`, tagged vX.Y.Z, with the bare version number. On `dev`
+// the version carries a -dev suffix, so a development build is never mistaken
+// for the release it will become. Drop the suffix only when cutting a release.
 //
 // Upstream AnimatedPixelClock (Keralots) reached 2.3.0 on HUB75 hardware. This
 // CYD port restarts its own history at 1.0.0; see CHANGELOG.md.
-constexpr const char *FIRMWARE_VERSION = "1.1.0-dev";
+constexpr const char *FIRMWARE_VERSION = "1.1.0";
 constexpr const char *UPSTREAM_VERSION = "2.3.0";
+
+// ============================ Identity ===================================
+// The web UI sidebar and /api/info show both halves: this port's repository and
+// the project it is based on. Keep both - MIT requires the upstream notice (see
+// LICENSE). Improv-Serial and mDNS hold one name, so they get PROJECT_NAME.
+constexpr const char *PROJECT_NAME = "CYD_AnimatedPixelClock";
+constexpr const char *PROJECT_REPO_URL = "https://github.com/anthonyjclarke/CYD_AnimatedPixelClock";
+constexpr const char *PROJECT_REPO_LABEL = "github.com/anthonyjclarke";
+constexpr const char *UPSTREAM_PROJECT = "AnimatedPixelClock";
+constexpr const char *UPSTREAM_AUTHOR = "Keralots";
+constexpr const char *UPSTREAM_REPO_URL = "https://github.com/Keralots/AnimatedPixelClock";
 
 // ====================== Logical canvas geometry ==========================
 // The clock styles draw into an off-screen RGB565 canvas of SCREEN_WIDTH x
@@ -59,11 +70,18 @@ constexpr const char *UPSTREAM_VERSION = "2.3.0";
 constexpr int PANEL_WIDTH = CANVAS_WIDTH * DISPLAY_SCALE;
 constexpr int PANEL_HEIGHT = CANVAS_HEIGHT * DISPLAY_SCALE;
 
-// Board identity, reported by the web UI and /api/info.
-#ifdef BOARD_CYD_40
+// Board identity, reported at boot, by the web UI and by /api/info. The 2.4" env
+// also defines BOARD_CYD_28, because it shares that board's LDR and RGB LED;
+// BOARD_CYD_24 is what tells the two apart for display purposes.
+#if defined(BOARD_CYD_40)
 #define BOARD_NAME "ESP32 CYD 4.0\" (ST7796S)"
+#define DISPLAY_MODEL "ST7796S 480x320 TFT"
+#elif defined(BOARD_CYD_24)
+#define BOARD_NAME "ESP32 CYD 2.4\" (ILI9341)"
+#define DISPLAY_MODEL "ILI9341 320x240 TFT"
 #else
 #define BOARD_NAME "ESP32 CYD 2.8\" (ILI9341)"
+#define DISPLAY_MODEL "ILI9341 320x240 TFT"
 #endif
 
 // Landscape. TFT_eSPI rotation 1 = USB port on the right for both CYD variants.
@@ -170,13 +188,26 @@ constexpr uint8_t BACKLIGHT_LEDC_BITS = 8;
 #define AP_NAME "PixelClock-Setup"
 #define AP_PASSWORD ""
 
-// Optional hardcoded credentials for modules with a faulty AP mode. Define
-// these in include/secrets.h (gitignored) or via -D build flags - never here.
+// Optional hardcoded credentials for modules with a faulty AP mode. Put them in
+// include/secrets.h (gitignored - copy include/secrets.h.example), or pass
+// -DHARDCODED_WIFI_SSID / -DHARDCODED_WIFI_PASSWORD. Never here. secrets.h is
+// picked up automatically when it exists.
+#if __has_include("secrets.h")
+#include "secrets.h"
+#endif
 #ifndef HARDCODED_WIFI_SSID
+#ifdef SECRET_WIFI_SSID
+#define HARDCODED_WIFI_SSID SECRET_WIFI_SSID
+#else
 #define HARDCODED_WIFI_SSID ""
 #endif
+#endif
 #ifndef HARDCODED_WIFI_PASSWORD
+#ifdef SECRET_WIFI_PASS
+#define HARDCODED_WIFI_PASSWORD SECRET_WIFI_PASS
+#else
 #define HARDCODED_WIFI_PASSWORD ""
+#endif
 #endif
 
 // Restart if WiFi has been lost for this long (ms).
