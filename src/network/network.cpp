@@ -9,6 +9,7 @@
 #include "../utils/utils.h"
 #include "../timezones.h"
 #include "improv_setup.h"
+#include "../status_led/rgb_led.h"
 #include <Preferences.h>
 #include <esp_wifi.h>
 #include "ping/ping_sock.h"
@@ -25,6 +26,10 @@ extern Preferences preferences;
 // ========== WiFi Callbacks ==========
 void configModeCallback(WiFiManager *myWiFiManager) {
   DBG_INFO("Config mode entered, AP IP %s", WiFi.softAPIP().toString().c_str());
+
+  // The portal waits inside setup(), before loop() - the only other caller -
+  // ever runs, so without this the LED never shows the portal state.
+  updateRgbLed();
 
   if (displayAvailable) {
 #if QR_SETUP_ENABLED

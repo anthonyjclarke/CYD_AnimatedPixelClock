@@ -3,15 +3,17 @@
 /*
  * CYD_AnimatedPixelClock - Onboard RGB status LED
  *
- * CYD-only addition. The 2.8" board carries a common-anode RGB LED on
- * GPIO 17 / 16 / 4; the 4.0" board does not, so this compiles to stubs there.
+ * CYD-only addition. Every supported board carries a common-anode RGB LED;
+ * the pins are in include/config.h (red differs on the 4.0"). A board without
+ * one compiles this to stubs.
  *
  * Common anode means the pins sink current: duty 0 is full brightness and 255
  * is off. The PWM writes below invert for you - pass normal 0-255 values where
  * 255 means "as bright as this channel goes".
  *
- * It reports device state, not clock content: WiFi progress at boot, the AP
- * portal, and any active notification.
+ * It reports device state, not clock content: amber while the setup portal is
+ * open, a red pulse while WiFi is down, a blue pulse for a notification, and
+ * dark when all is well. initRgbLed() flashes red, green, blue once at boot.
  */
 
 #include <Arduino.h>

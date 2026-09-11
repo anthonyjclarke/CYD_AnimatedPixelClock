@@ -165,12 +165,19 @@ constexpr uint8_t LDR_MAX_BRIGHTNESS = 255;
 
 // ====================== CYD hardware - RGB status LED ====================
 // Onboard common-anode RGB LED: writing 0 is full brightness, 255 is off.
-// Only the 2.8" board populates it.
-#ifdef BOARD_CYD_28
+// All three boards fit one. Green is GPIO 16 and blue GPIO 17 on each; red is
+// GPIO 4 on the 2.4" and 2.8" (ESP32-2432S024 / -028R) but GPIO 22 on the 4.0"
+// ESP32-32E (LCDwiki E32R40T).
+#if defined(BOARD_CYD_40)
 #define HAS_RGB_LED 1
-constexpr uint8_t RGB_LED_R = 17;
+constexpr uint8_t RGB_LED_R = 22;
 constexpr uint8_t RGB_LED_G = 16;
-constexpr uint8_t RGB_LED_B = 4;
+constexpr uint8_t RGB_LED_B = 17;
+#elif defined(BOARD_CYD_28)
+#define HAS_RGB_LED 1
+constexpr uint8_t RGB_LED_R = 4;
+constexpr uint8_t RGB_LED_G = 16;
+constexpr uint8_t RGB_LED_B = 17;
 #else
 #define HAS_RGB_LED 0
 #endif

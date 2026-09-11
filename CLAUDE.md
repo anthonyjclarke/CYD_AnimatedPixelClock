@@ -16,6 +16,8 @@ Three envs, all plain `esp32dev`, 4 MB, no PSRAM: `esp32-cyd-24` and
 The display is on HSPI's native pins. Touch is an XPT2046 with its own VSPI pins
 on the 2.4″/2.8″, but on the display's SPI lines on the 4.0″ (confirmed on an
 ESP32-32E) — see `TOUCH_CS`. Capacitive boards: `HAS_RESISTIVE_TOUCH=0`.
+RGB LED is red GPIO 4 / green 16 / blue 17, but red is GPIO 22 on the 4.0″. The
+global CYD rule has red and blue reversed — do not copy it.
 
 ## Rendering model — the central architectural decision
 

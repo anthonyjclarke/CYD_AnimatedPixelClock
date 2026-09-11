@@ -270,9 +270,13 @@ void setup() {
            (unsigned)CANVAS_BYTES);
   DBG_INFO("Sprites  x%d, character band %dpx, digits %dx%d", SPRITE_SCALE,
            CHAR_BAND, DIGIT_W, DIGIT_H);
-  DBG_INFO("Hardware touch %s, LDR %s, RGB LED %s",
-           TOUCH_BACKEND_NAME,
-           HAS_LDR ? "GPIO34" : "none", HAS_RGB_LED ? "GPIO4/16/17" : "none");
+#if HAS_RGB_LED
+  DBG_INFO("Hardware touch %s, LDR %s, RGB LED R%u/G%u/B%u", TOUCH_BACKEND_NAME,
+           HAS_LDR ? "GPIO34" : "none", RGB_LED_R, RGB_LED_G, RGB_LED_B);
+#else
+  DBG_INFO("Hardware touch %s, LDR %s, RGB LED none", TOUCH_BACKEND_NAME,
+           HAS_LDR ? "GPIO34" : "none");
+#endif
   DBG_INFO("Debug    level %u (1=err 2=warn 3=info 4=verbose)", debugLevel);
   DBG_INFO("=======================================================");
 

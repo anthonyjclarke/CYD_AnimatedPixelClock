@@ -29,6 +29,7 @@ constexpr uint8_t LED_BITS = 8;
 constexpr uint8_t STATUS_LEVEL = 40;
 
 constexpr uint32_t UPDATE_INTERVAL_MS = 250;
+constexpr uint32_t SELF_TEST_STEP_MS = 250;
 uint32_t lastUpdateMs = 0;
 bool started = false;
 
@@ -46,8 +47,18 @@ void initRgbLed() {
   ledcAttachPin(RGB_LED_G, CH_G);
   ledcAttachPin(RGB_LED_B, CH_B);
   started = true;
+
+  // Self-test: red, green, blue in turn, then off. A connected clock leaves the
+  // LED dark, so without this there is no way to see that it works or that the
+  // pins are in the right order. Runs from setup() only, so delay() is fine.
+  static const uint8_t TEST_COLOURS[3][3] = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}};
+  for (const auto &c : TEST_COLOURS) {
+    rgbLedSet(c[0], c[1], c[2]);
+    delay(SELF_TEST_STEP_MS);
+  }
   rgbLedOff();
-  DBG_INFO("RGB status LED ready on GPIO %u/%u/%u", RGB_LED_R, RGB_LED_G, RGB_LED_B);
+  DBG_INFO("RGB status LED ready: R GPIO %u, G GPIO %u, B GPIO %u (self-test: red, green, blue)",
+           RGB_LED_R, RGB_LED_G, RGB_LED_B);
 }
 
 void rgbLedSet(uint8_t r, uint8_t g, uint8_t b) {
