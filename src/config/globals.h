@@ -20,7 +20,7 @@
 struct Settings {
   char cycleConfig[128];       // Ordered style:seconds pairs; 0 seconds disables
   // Clock settings
-  uint8_t clockStyle;       // 0=Mario, 1=Standard, 2=Large, 3=Space Invader, 4=Space Ship, 5=Pong, 6=Pac-Man, 7=Snake, 8=Tetris, 9=Cycle All, 10=Asteroids, 11=Dino Runner, 12=Matrix Rain, 14=Weather, 15=Bomberman, 16=TRON (13 retired: Missile Command)
+  uint8_t clockStyle;       // 0=Mario, 1=Standard, 2=Large, 3=Space Invader, 4=Space Ship, 5=Pong, 6=Pac-Man, 7=Snake, 8=Tetris, 9=Cycle All, 10=Asteroids, 11=Dino Runner, 12=Matrix Rain, 14=Weather, 15=Bomberman, 16=TRON, 17=Doom Fire (13 retired: Missile Command)
   int16_t gmtOffset;        // GMT offset in minutes (deprecated, kept for migration)
   bool daylightSaving;      // DST enabled (deprecated, kept for migration)
   char timezoneString[64];  // POSIX TZ string (e.g., "CET-1CEST,M3.5.0/02:00,M10.5.0/03:00")
@@ -77,6 +77,14 @@ struct Settings {
 
   // TRON clock settings
   uint8_t tronBikeStyle;       // 0=Motorcycle profile, 1=Light cycle top view
+
+  // Doom Fire clock settings. Heights are in fire rows (2 canvas px each).
+  uint8_t doomFlameHeight;     // Digit plume reach above the digits (8-40)
+  uint8_t doomGroundHeight;    // Ground fire reach (5-40)
+  uint8_t doomWind;            // 0=Left (classic), 1=None, 2=Right
+  bool doomShowDate;           // Show date row (off = centred clock)
+  bool doomBurningDigits;      // Digits feed the fire and throw their own flames
+  bool doomSmoothFire;         // Soften the flames off the digits (ground fire untouched)
 
   // Mario clock settings
   uint8_t marioBounceHeight;  // Tenths (40 = 4.0)

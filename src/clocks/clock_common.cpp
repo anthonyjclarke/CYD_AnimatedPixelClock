@@ -15,6 +15,7 @@
 // call it in place of the old global digitColor().
 uint16_t digitColor() {
   uint8_t s = settings.clockStyle;
+  if (s == 17) return SPRITE_COLOR(COL_DIGITS_S17);
   if (s == 16) return SPRITE_COLOR(COL_DIGITS_S16);
   if (s == 15) return SPRITE_COLOR(COL_DIGITS_S15);
   if (s > 14) s = 1;  // out-of-range -> Standard clock's slot
@@ -417,6 +418,7 @@ static const char *const CLOCK_STYLE_NAMES[] = {
     "Weather",      // 14
     "Bomberman",    // 15
     "TRON",         // 16
+    "Doom Fire",    // 17
 };
 
 const char *clockStyleName(uint8_t style) {

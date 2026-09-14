@@ -104,6 +104,12 @@ enum ColorSlot {
   COL_MARIO_HILL,      // scenery: background hills and bushes
   COL_MARIO_GROUND,    // scenery: ground strip
   COL_MARIO_BLOCK,     // scenery: question blocks
+  // Doom Fire (style 17). The flame ramp is interpolated from these three
+  // anchors, so they are the whole palette, not three separate sprites.
+  COL_DOOM_EMBER,      // coolest visible heat
+  COL_DOOM_FLAME,      // mid heat
+  COL_DOOM_CORE,       // white-hot core
+  COL_DIGITS_S17,      // Doom Fire digits (separate from the contiguous S0-S14 slots)
   // ...append future slots here (before COL_COUNT)
   COL_COUNT
 };

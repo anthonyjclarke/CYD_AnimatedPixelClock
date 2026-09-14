@@ -84,6 +84,10 @@ const uint16_t SPRITE_COLOR_DEFAULTS[] = {
     /* COL_MARIO_HILL     */ 0x0620,  // hill / bush green
     /* COL_MARIO_GROUND   */ 0xC408,  // ground brick brown
     /* COL_MARIO_BLOCK    */ 0xFD20,  // question-block orange
+    /* COL_DOOM_EMBER     */ 0x1820,  // deep red, classic Doom ramp foot
+    /* COL_DOOM_FLAME     */ 0xCB61,  // orange, classic Doom ramp middle
+    /* COL_DOOM_CORE      */ 0xFFFF,  // white-hot
+    /* COL_DIGITS_S17     */ 0xFFFF,  // white
 };
 // Every ColorSlot must have a default here, else it silently defaults to black.
 static_assert(sizeof(SPRITE_COLOR_DEFAULTS) / sizeof(SPRITE_COLOR_DEFAULTS[0]) == COL_COUNT,
@@ -160,6 +164,12 @@ void loadSettings() {
     settings.rgbLedEnabled = true;
     settings.marioScenery = true;
     settings.tronBikeStyle = 0;
+    settings.doomFlameHeight = 20;
+    settings.doomGroundHeight = 13;
+    settings.doomWind = 0;
+    settings.doomShowDate = false;
+    settings.doomBurningDigits = true;
+    settings.doomSmoothFire = false;
     settings.marioBounceHeight = 35; // Default: 3.5 (35 = 3.5 in tenths)
     settings.marioBounceSpeed = 6;   // Default: 0.6 (6 = 0.6 in tenths)
     settings.marioSmoothAnimation = false; // Default: 2-frame animation
@@ -225,6 +235,12 @@ void loadSettings() {
   settings.clockStyle = preferences.getInt("clockStyle", 0); // Default: Mario
   settings.tronBikeStyle = preferences.getUChar("tronBikeStyle", 0);
   if (settings.tronBikeStyle > 1) settings.tronBikeStyle = 0;
+  settings.doomFlameHeight = preferences.getUChar("dmHeight", 20);   // Default: 20 rows of reach
+  settings.doomGroundHeight = preferences.getUChar("dmGround", 13);  // Default: 13 rows
+  settings.doomWind = preferences.getUChar("dmWind", 0);             // Default: classic left drift
+  settings.doomShowDate = preferences.getBool("dmDate", false);      // Default: centred clock
+  settings.doomBurningDigits = preferences.getBool("dmBurn", true);  // Default: digits throw flames
+  settings.doomSmoothFire = preferences.getBool("dmSmooth", false);  // Default: blocky retro flames
   if (settings.clockStyle == 13) settings.clockStyle = 1;    // retired Missile Command -> Standard
 
   // gmtOffset migration: convert old hours to new minutes format
@@ -611,6 +627,12 @@ void saveSettings() {
   preferences.putUChar("tetFallSpd", settings.tetrisFallSpeed);
   preferences.putUChar("tetBlockSty", settings.tetrisBlockStyle);
   preferences.putUChar("tronBikeStyle", settings.tronBikeStyle);
+  preferences.putUChar("dmHeight", settings.doomFlameHeight);
+  preferences.putUChar("dmGround", settings.doomGroundHeight);
+  preferences.putUChar("dmWind", settings.doomWind);
+  preferences.putBool("dmDate", settings.doomShowDate);
+  preferences.putBool("dmBurn", settings.doomBurningDigits);
+  preferences.putBool("dmSmooth", settings.doomSmoothFire);
   preferences.putBool("tetIdleTmbl", settings.tetrisIdleTumble);
   preferences.putUChar("tetAnimSty", settings.tetrisAnimStyle);
   preferences.putBool("tetShowDate", settings.tetrisShowDate);

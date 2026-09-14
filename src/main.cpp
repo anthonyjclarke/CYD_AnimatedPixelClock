@@ -122,7 +122,7 @@ int getOptimalRefreshRate() {
 // Style IDs the user can reach, in the order a tap walks through them.
 // 4 is a legacy alias for Space Invaders; 13 is retired.
 static const uint8_t SELECTABLE_STYLES[] = {0, 1, 2, 3, 5, 6, 7, 8,
-                                            9, 10, 11, 12, 14, 15, 16};
+                                            9, 10, 11, 12, 14, 15, 16, 17};
 static constexpr size_t SELECTABLE_STYLE_COUNT =
     sizeof(SELECTABLE_STYLES) / sizeof(SELECTABLE_STYLES[0]);
 
@@ -197,6 +197,7 @@ void cycleClockScreens() {
     case 14: displayClockWithWeather(); break;
     case 15: displayClockWithBomberman(); break;
     case 16: displayClockWithTron(); break;
+    case 17: displayClockWithDoom(); break;
   }
 }
 
@@ -219,6 +220,7 @@ static void renderActiveClock() {
     case 14: displayClockWithWeather(); break;
     case 15: displayClockWithBomberman(); break;
     case 16: displayClockWithTron(); break;
+    case 17: displayClockWithDoom(); break;
     default: displayStandardClock(); break;
   }
 }
