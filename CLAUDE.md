@@ -44,7 +44,8 @@ literal coordinates. Two rules split the metrics:
 
 The vertical stack is built bottom-up from the text rows, because `CHAR_BAND`
 must stay exactly one sprite tall: Mario bounces a digit with his head. Pac-Man,
-TRON and Bomberman draw their own digits and derive their own row geometry.
+TRON, Bomberman and Doom Fire draw their own digits and derive their own row
+geometry. Doom Fire's fire grid is half resolution (2×2 px cells) on purpose.
 
 ## Never do these
 
@@ -69,6 +70,8 @@ TRON and Bomberman draw their own digits and derive their own row geometry.
 - **Never drop the upstream credit.** The web UI and `/api/info` name this repo
   *and* "Based on AnimatedPixelClock by Keralots", from `PROJECT_*` and
   `UPSTREAM_*` in `include/config.h`; `LICENSE` keeps both copyrights.
+- **Never change how the port differs from upstream without updating
+  `DEVIATIONS.md` in the same commit** — added, removed or reworked behaviour.
 - **Never restore `.github/FUNDING.yml`** — those links are the upstream author's.
 
 ## Deliberate deviations from the global rules

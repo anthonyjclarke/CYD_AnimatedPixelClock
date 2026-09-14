@@ -9,7 +9,7 @@
 ![Status](https://img.shields.io/badge/status-working%20on%20hardware-brightgreen.svg)
 
 An animated retro-arcade clock — Mario, Space Invaders, Pac-Man, Snake, Tetris,
-Asteroids, Dino Runner, Matrix Rain, TRON, Bomberman and more — running on the
+Asteroids, Dino Runner, Matrix Rain, TRON, Bomberman, Doom Fire and more — running on the
 **ESP32 Cheap Yellow Display**. Clock style, sprite colours, brightness
 scheduling, timezone and OTA updates are all configured from a built-in web
 interface.
@@ -43,6 +43,10 @@ reads "Based on AnimatedPixelClock by Keralots" with a link to the original, and
 `/api/info` carries the same pair. Improv-Serial and mDNS, which have room for
 one name, report `CYD_AnimatedPixelClock`.
 
+Everything this port does differently from the original — hardware, removed
+and added features, layout, defaults, settings — is listed in
+[`DEVIATIONS.md`](DEVIATIONS.md).
+
 ---
 
 ## Port status
@@ -58,7 +62,7 @@ NTP and weather. See the [Roadmap](#roadmap) for what is still unverified.
 | CYD display layer (`CydDisplay`)        | Verified on 320×240 and 480×320            |
 | Touch, own bus and shared bus           | Verified on 320×240 and 480×320            |
 | Web UI                                  | In use on hardware; not every page tested  |
-| Clock styles, all 14                    | Seen running; not each judged individually |
+| Clock styles, all 15                    | Seen running; not each judged individually |
 | RGB status LED                          | Verified on hardware                       |
 | LDR auto-brightness                     | Built; not yet verified on hardware        |
 | `Serial.print` to `DBG_*` conversion    | Complete                                   |
@@ -107,7 +111,7 @@ on VSPI. Confirmed on an ESP32-32E.
 
 ### First flash on a 2.4″
 
-The panel is the same 320×240 as the 2.8″, so the canvas and all fourteen clock
+The panel is the same 320×240 as the 2.8″, so the canvas and all fifteen clock
 layouts are identical — only the board revision differs. If the display is wrong,
 the symptom identifies the cause:
 
@@ -305,6 +309,7 @@ a desk. Anything genuinely broken is listed as a bug and comes first.
   pages and ~300 lines of `PORTAL_JS` were removed during the port.
 - **Not every clock style has been judged individually.** Mario, Space
   Invaders, Weather, Bomberman, Matrix Rain and Large have been seen running.
+  Doom Fire, ported from upstream after 1.2.0, has only been built so far.
   Bomberman's corridor spacing and TRON's approach waypoints are the loosest
   layout inferences and the most likely to need adjusting by eye.
 - **LDR auto-brightness is unverified.** Its thresholds in `include/config.h`

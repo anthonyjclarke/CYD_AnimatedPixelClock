@@ -25,7 +25,26 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
 
 ## [Unreleased] — 1.3.0-dev
 
-Nothing yet. See the [Roadmap](README.md#roadmap) for what is queued.
+### Added
+
+- **Doom Fire clock style (17), ported from upstream.** Keralots added it to
+  AnimatedPixelClock after v2.3.0 (commit `f504bd4`): the PSX Doom fire effect
+  with the digits as heat sources. They burn white-hot and throw their own
+  flames, and at the minute change a changed digit burns away before the new
+  value re-ignites. Its six settings (digit flame height, ground fire height,
+  draught, burning digits, smooth fire, show date), three flame colours and its
+  own digit colour are in the web UI, Cycle All, tap order, export and import,
+  as upstream has them.
+- The fire runs on a grid of 2×2-pixel cells — 80×60 on the 2.4″/2.8″, 120×80
+  on the 4.0″ — rather than one cell per pixel. That holds the heat buffer to
+  4.8 / 9.6 KB of static RAM instead of 19–38 KB, and keeps upstream's tuning,
+  made for its 64-row panel, valid unchanged; the height settings are in fire
+  rows. The digits are drawn over it at full resolution.
+- Upstream also made the render loop skip `clearDisplay()` for this style, to
+  stop a HUB75 scan flash. The CYD canvas is off-screen, so that clear cannot
+  flash; the change was not ported.
+- `DEVIATIONS.md`: a standing record of every way the port differs from
+  upstream, kept current in the same commit as each change.
 
 ---
 
