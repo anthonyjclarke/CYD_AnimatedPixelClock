@@ -39,3 +39,4 @@ archive/pc-companion/PC-Companion-App-v4/win-companion/dist/
 *.exe
 
 # NOTE: CHANGELOG.md, CLAUDE.md and the rest of archive/ are tracked deliberately.
+.vscode/extensions.json
