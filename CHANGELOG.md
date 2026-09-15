@@ -51,6 +51,22 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
   optional corner clock. Each effect is re-laid-out for the CYD canvas. A tap
   while it runs shows the clock for a minute. Upstream's "This is fine" scene
   and uploaded-animation player stay archived.
+- **Long press starts the screensaver.** Holding a finger on the screen for
+  0.8 s (`TOUCH_LONG_PRESS_MS`) starts the screensaver, or leaves it for the
+  clock. A tap now counts when the finger lifts rather than when it lands, so a
+  long press never changes the clock style first.
+- The web UI Diagnostics box shows the ESP32's uptime.
+
+### Fixed
+
+- **Snake sometimes lost a minutes digit at the minute change.** Pellet
+  positions were stored as 8-bit pixel coordinates, which stop at 127. Upstream's
+  128 px canvas fitted; on the CYD the right two columns of the minutes-ones
+  digit (both minute digits on the 4.0″) wrapped negative, so those pellets sat
+  off-screen where the snake could never eat them. It chased them until its step
+  limit gave up, and the digit blanked, then jumped to the new value.
+  Coordinates are now 16-bit, the step limits scale with the arena, and giving
+  up is logged.
 
 ---
 

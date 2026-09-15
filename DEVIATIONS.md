@@ -47,7 +47,8 @@ same commit.
 
 ## Added in the port
 
-- **Touch.** Tapping the screen moves to the next clock style and saves it. The
+- **Touch.** A tap moves to the next clock style and saves it; a long press
+  starts or stops the screensaver. The
   XPT2046 has its own VSPI bus on the 2.4″/2.8″ and shares the display's SPI
   lines on the 4.0″. Impossible reads are ignored rather than becoming taps.
   Calibration bounds live in the `cydtouch` NVS namespace. Upstream has no
@@ -120,7 +121,8 @@ says what reviving each part would take.
   the 4.0″). At 128×64 each formula gives upstream's own numbers.
 - **Tap.** A tap on the screensaver brings the clock back for a minute
   (`AMBIENT_PEEK_MS`). While the clock shows, taps change the clock style as
-  usual, each restarting the minute. Upstream has no touch.
+  usual, each restarting the minute. A long press (`TOUCH_LONG_PRESS_MS`)
+  starts the screensaver, or leaves it for the clock. Upstream has no touch.
 - **Status.** `/api/status` reports `mode` as `ambient` while it runs, plus
   `forcedAmbient`, and the sidebar reads "Online · screensaver". Starting and
   stopping are logged.
@@ -145,7 +147,9 @@ says what reviving each part would take.
   at 21×8 cells.
 - **Tetris.** The well is 11 rows (25 in small-clock mode) instead of 5 (13),
   and its row mask is 64 bits instead of 32.
-- **Snake.** The arena is 40×30 cells (60×40 on the 4.0″) instead of 32×16.
+- **Snake.** The arena is 40×30 cells (60×40 on the 4.0″) instead of 32×16, and
+  the step limits for chasing a digit's pellets and clearing its spot scale
+  with it: 116 and 58 steps (166 and 83 on the 4.0″) instead of 80 and 40.
 - **Dino Runner.** Its position is proportional to the width, not a fixed
   12 px.
 - **Doom Fire.** The fire runs on 2×2-pixel cells — 80×60, or 120×80 on the
@@ -204,7 +208,8 @@ empty, not as a matter of taste.
 - **Status readout.** The sidebar shows "Online · <clock style>" (or "display
   off"), and "Offline" when the device stops answering. Upstream's shows
   whether the PC companion is online.
-- **Diagnostics box.** Upstream's animation-player lines are removed.
+- **Diagnostics box.** Upstream's animation-player lines are removed, and the
+  ESP32's uptime is added.
 - **Wording.**
   - The Clock page offers a clock animation, not "the idle animation shown when
     your PC is asleep", under a "Clock style" heading rather than "Idle clock".

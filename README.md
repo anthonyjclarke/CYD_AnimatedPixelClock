@@ -224,6 +224,8 @@ and firmware updates. The timezone defaults to Central European, so set yours
 first.
 
 Tap anywhere on the screen to move to the next clock style; the choice is saved.
+Hold a finger on the screen for a moment to start the screensaver, and again to
+leave it.
 Tapping and Cycle All both skip the Weather style until a location is set.
 
 Set the weather location by searching for a city under the Weather style's
