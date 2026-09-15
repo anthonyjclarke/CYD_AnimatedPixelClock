@@ -46,6 +46,14 @@ bool ambientActive();
 void ambientPeekClock();
 bool ambientPeeking();
 
+// Force the screensaver on now, until /api/mode/auto, /api/mode/clock, a long
+// press or a reboot. `source` names what asked, for the log ("API", "touch").
+void ambientStart(const char *source);
+
+// Long press: start the screensaver if the clock is showing, otherwise leave it
+// and return to the clock.
+void ambientToggleFromTouch();
+
 // Call every loop pass: logs the screensaver starting and stopping.
 void ambientUpdate();
 

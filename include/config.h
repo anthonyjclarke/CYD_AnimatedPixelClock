@@ -126,8 +126,16 @@ constexpr uint8_t TOUCH_IRQ_PIN = 36;   // input-only pin
 // Touch SPI must stay at or below 2.5MHz or reads are unreliable.
 constexpr uint32_t TOUCH_SPI_FREQUENCY = 2500000;
 
-// Ignore repeat presses inside this window (ms).
+// Ignore repeat taps inside this window (ms).
 constexpr uint32_t TOUCH_DEBOUNCE_MS = 250;
+
+// Holding a finger down this long is a long press (ms), which starts or stops the
+// screensaver. Anything shorter is a tap, counted when the finger lifts.
+constexpr uint32_t TOUCH_LONG_PRESS_MS = 800;
+
+// A resistive panel drops the odd sample mid-press. The finger only counts as
+// lifted once contact has been gone this long (ms), so a hold is not split.
+constexpr uint32_t TOUCH_RELEASE_MS = 60;
 
 // Pressure thresholds for the shared-bus backend, which polls pressure instead
 // of waiting on an IRQ. Press and release differ so a finger resting near the

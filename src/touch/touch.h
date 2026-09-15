@@ -10,8 +10,9 @@
  * flag - if it were, TFT_eSPI would drive the same chip select and the two
  * drivers would fight over the bus.
  *
- * Current interaction is a single gesture: tap anywhere to advance to the next
- * enabled clock style. That needs no coordinate accuracy, so the firmware is
+ * Two gestures, both anywhere on the screen: a tap (counted when the finger
+ * lifts) advances the clock style, and a long press (TOUCH_LONG_PRESS_MS)
+ * starts or stops the screensaver. Neither needs coordinate accuracy, so it is
  * usable before anyone runs a calibration. Calibration bounds are still read
  * from and written to NVS (never hardcoded) so mapped coordinates are correct
  * for any future on-screen UI.
@@ -24,14 +25,20 @@
 // Bring up the touch SPI bus and load calibration from NVS.
 void initTouch();
 
-// Poll for a debounced tap. Call from loop(). Returns true once per press.
-bool touchTapped();
+enum TouchGesture : uint8_t { TOUCH_NONE, TOUCH_TAP, TOUCH_LONG_PRESS };
+
+// Poll for a gesture. Call from loop() every pass. A tap is reported when the
+// finger lifts, so a press can still become a long press; a long press is
+// reported once, the moment it has been held long enough, and its release is
+// then ignored.
+TouchGesture touchPoll();
 
 // True while the panel is being pressed.
 bool touchPressed();
 
-// Last tap in canvas coordinates (0..SCREEN_WIDTH-1, 0..SCREEN_HEIGHT-1),
-// mapped through the stored calibration. Only meaningful after touchTapped().
+// Where the last gesture's press began, in canvas coordinates
+// (0..SCREEN_WIDTH-1, 0..SCREEN_HEIGHT-1), mapped through the stored
+// calibration. Only meaningful after touchPoll() has reported a gesture.
 int16_t touchX();
 int16_t touchY();
 

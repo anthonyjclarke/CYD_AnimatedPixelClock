@@ -392,17 +392,25 @@ void loop() {
   // CYD peripherals
   updateLdr();
   updateRgbLed();
-  if (touchTapped()) {
-    if (ambientActive()) {
-      // A tap on the screensaver brings the clock back for a while.
-      ambientPeekClock();
-    } else {
-      // A tap on a visible clock changes the style, as always - including while
-      // the screensaver has stepped aside, when it also restarts that time so
-      // the new style gets its full minute.
-      advanceClockStyle();
-      if (ambientPeeking()) ambientPeekClock();
-    }
+  switch (touchPoll()) {
+    case TOUCH_TAP:
+      if (ambientActive()) {
+        // A tap on the screensaver brings the clock back for a while.
+        ambientPeekClock();
+      } else {
+        // A tap on a visible clock changes the style, as always - including
+        // while the screensaver has stepped aside, when it also restarts that
+        // time so the new style gets its full minute.
+        advanceClockStyle();
+        if (ambientPeeking()) ambientPeekClock();
+      }
+      break;
+    case TOUCH_LONG_PRESS:
+      // A long press starts the screensaver, or leaves it for the clock.
+      ambientToggleFromTouch();
+      break;
+    default:
+      break;
   }
   ambientUpdate();
 

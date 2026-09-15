@@ -19,6 +19,7 @@ namespace {
 
 bool peeking = false;
 uint32_t peekStart = 0;
+const char *forcedBy = "API";  // what last forced the screensaver on, for the log
 
 bool inScheduleWindow() {
   if (!settings.ambientEnabled) return false;
@@ -79,8 +80,27 @@ bool ambientPeeking() {
 void ambientPeekClock() {
   peeking = true;
   peekStart = millis();
-  DBG_INFO("Screensaver: tap - showing the clock for %us",
+  DBG_INFO("Screensaver: showing the clock for %us",
            (unsigned)(AMBIENT_PEEK_MS / 1000));
+}
+
+void ambientStart(const char *source) {
+  peeking = false;
+  forcedBy = source;
+  httpForceAmbient = true;
+}
+
+void ambientToggleFromTouch() {
+  if (!ambientActive()) {
+    ambientStart("touch");
+    return;
+  }
+  httpForceAmbient = false;
+  // Inside the schedule window the screensaver would come straight back, so step
+  // it aside for a while, the way a tap does.
+  if (inScheduleWindow()) {
+    ambientPeekClock();
+  }
 }
 
 bool ambientActive() {
@@ -95,7 +115,7 @@ void ambientUpdate() {
   wasActive = active;
   if (active) {
     DBG_INFO("Screensaver on: %s (%s)", ambientStyleName(settings.ambientStyle),
-             httpForceAmbient ? "API" : "schedule");
+             httpForceAmbient ? forcedBy : "schedule");
   } else if (!peeking) {
     // A peek logs itself; this is the screensaver genuinely ending.
     DBG_INFO("Screensaver off");

@@ -248,7 +248,7 @@ void handleModeAuto() {
 // GET /api/mode/ambient - show the screensaver now, until /api/mode/auto,
 // /api/mode/clock or a reboot. A tap still shows the clock for a while.
 void handleModeAmbient() {
- httpForceAmbient = true;
+ ambientStart("API");
  httpForceClock = false;
  server.sendHeader("Access-Control-Allow-Origin", "*");
  server.send(200, "application/json", "{\"success\":true,\"mode\":\"ambient\"}");

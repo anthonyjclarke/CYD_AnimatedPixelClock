@@ -839,7 +839,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                   <option value="4" %SEL_AMBIENTSTYLE_4%>Aquarium</option>
                 </select>
               </div>
-              <p class="field-hint">A full-screen effect shown instead of the clock. Tap the screen while it runs to see the clock for a minute.</p>
+              <p class="field-hint">A full-screen effect shown instead of the clock. Hold a finger on the screen to start or stop it; a tap while it runs shows the clock for a minute.</p>
             </div>
             <label class="check-row standalone" style="margin-top:16px">
               <input type="checkbox" name="ambientShowClock" id="ambientShowClock" %CHK_AMBIENTSHOWCLOCK%>
@@ -876,7 +876,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
               <label class="check-row">
                 <input type="checkbox" name="touchEnabled" id="touchEnabled" %CHK_TOUCHENABLED%>
                 <span class="check-box" aria-hidden="true"></span>
-                <span class="check-text"><strong>Tap to change clock style</strong><span class="ct-hint">Touch anywhere on the screen to advance to the next style. The choice is saved.</span></span>
+                <span class="check-text"><strong>Tap to change clock style</strong><span class="ct-hint">Tap anywhere to move to the next clock style. Hold a finger down for a moment to start or stop the screensaver.</span></span>
               </label>
               <label class="check-row">
                 <input type="checkbox" name="ldrAutoBrightness" id="ldrAutoBrightness" %CHK_LDRAUTO%>
@@ -1352,7 +1352,7 @@ function showCycle(){ $('#cycleSettings').style.display=$('#clockStyle').value==
 $('#clockStyle').addEventListener('change',showCycle);drawCycle();showCycle();
 function updateDiagnostics(d) {
  var reset={1:'Power on',3:'Software restart',4:'Panic',5:'Interrupt watchdog',6:'Task watchdog',7:'Watchdog',9:'Brownout'};
- var lines=['Firmware: '+d.version+' ('+d.build+')','Chip: '+d.chip,'Flash: '+(d.flashBytes/1048576).toFixed(0)+' MiB','Firmware size: '+Math.round(d.firmwareBytes/1024)+' KiB','Free heap: '+Math.round(d.freeHeap/1024)+' KiB','Lowest heap: '+Math.round(d.minFreeHeap/1024)+' KiB','Largest block: '+Math.round(d.largestHeapBlock/1024)+' KiB','Reset: '+(reset[d.resetReason]||d.resetReason),'Time synced: '+(d.ntpSynced?'yes':'no')];
+ var lines=['Firmware: '+d.version+' ('+d.build+')','Chip: '+d.chip,'Flash: '+(d.flashBytes/1048576).toFixed(0)+' MiB','Firmware size: '+Math.round(d.firmwareBytes/1024)+' KiB','Free heap: '+Math.round(d.freeHeap/1024)+' KiB','Lowest heap: '+Math.round(d.minFreeHeap/1024)+' KiB','Largest block: '+Math.round(d.largestHeapBlock/1024)+' KiB','Uptime: '+fmtUptime(d.uptime),'Reset: '+(reset[d.resetReason]||d.resetReason),'Time synced: '+(d.ntpSynced?'yes':'no')];
  if(d.weatherValid)lines.push('Weather age: '+d.weatherAgeSeconds+'s');
  $('#diagnosticsText').textContent=lines.join('\n');
 }

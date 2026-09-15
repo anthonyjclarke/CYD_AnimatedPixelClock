@@ -31,7 +31,7 @@
 // touch GPIOs, which on a capacitive CYD belong to a CST820 on I2C.
 void initTouch() { DBG_INFO("Touch: no resistive controller on this board"); }
 bool touchPressed() { return false; }
-bool touchTapped() { return false; }
+TouchGesture touchPoll() { return TOUCH_NONE; }
 int16_t touchX() { return 0; }
 int16_t touchY() { return 0; }
 uint16_t touchRawX() { return 0; }
@@ -61,9 +61,15 @@ uint16_t calYMin = TOUCH_RAW_MIN;
 uint16_t calYMax = TOUCH_RAW_MAX;
 
 bool started = false;
-bool wasPressed = false;
 bool warnedImplausible = false;
 uint32_t lastTapMs = 0;
+
+// Gesture state for the press in progress.
+bool fingerDown = false;
+bool longPressFired = false;
+uint32_t pressStartMs = 0;
+uint32_t lastContactMs = 0;
+uint16_t pressZ = 0;
 
 uint16_t lastRawX = 0, lastRawY = 0;
 int16_t lastX = 0, lastY = 0;
@@ -180,26 +186,19 @@ bool touchPressed() {
   return hwSample(x, y, z) && plausible(x, y, z);
 }
 
-bool touchTapped() {
+TouchGesture touchPoll() {
   if (!started || !settings.touchEnabled) {
-    return false;
+    fingerDown = false;
+    return TOUCH_NONE;
   }
 
   uint16_t rawX = 0, rawY = 0, z = 0;
+  const uint32_t now = millis();
+  bool contact = hwSample(rawX, rawY, z);
 
-  // Fire on the press edge only, so holding a finger down does not repeat.
-  if (!hwSample(rawX, rawY, z)) {
-    wasPressed = false;
-    return false;
-  }
-  if (wasPressed) {
-    return false;
-  }
-  wasPressed = true;
-
-  if (!plausible(rawX, rawY, z)) {
-    // Warn once per boot - a dead controller would otherwise log every press
-    // edge - then keep the detail at verbose.
+  if (contact && !plausible(rawX, rawY, z)) {
+    // Warn once per boot - a dead controller would otherwise log every poll -
+    // then keep the detail at verbose. An impossible read is never a finger.
     if (!warnedImplausible) {
       DBG_WARN("Touch: ignored implausible read raw(%u,%u) pressure %u - is the "
                "controller answering on these pins?", rawX, rawY, z);
@@ -207,23 +206,47 @@ bool touchTapped() {
     } else {
       DBG_VERBOSE("Touch: ignored implausible read raw(%u,%u) pressure %u", rawX, rawY, z);
     }
-    return false;
+    contact = false;
   }
 
-  const uint32_t now = millis();
+  if (contact) {
+    lastContactMs = now;
+    if (!fingerDown) {
+      // Press edge: remember where it began, for the log and for touchX/Y().
+      fingerDown = true;
+      longPressFired = false;
+      pressStartMs = now;
+      pressZ = z;
+      lastRawX = rawX;
+      lastRawY = rawY;
+      lastX = mapAxis(rawX, calXMin, calXMax, SCREEN_WIDTH);
+      lastY = mapAxis(rawY, calYMin, calYMax, SCREEN_HEIGHT);
+    }
+    if (!longPressFired && now - pressStartMs >= TOUCH_LONG_PRESS_MS) {
+      longPressFired = true;
+      DBG_INFO("Touch: long press at canvas(%d,%d) raw(%u,%u) pressure %u", lastX,
+               lastY, lastRawX, lastRawY, pressZ);
+      return TOUCH_LONG_PRESS;
+    }
+    return TOUCH_NONE;
+  }
+
+  // No contact. Only a release once contact has been gone for TOUCH_RELEASE_MS,
+  // so a sample dropped mid-press does not split one hold into two taps.
+  if (!fingerDown || now - lastContactMs < TOUCH_RELEASE_MS) {
+    return TOUCH_NONE;
+  }
+  fingerDown = false;
+  if (longPressFired) {
+    return TOUCH_NONE;  // the long press was already reported
+  }
   if (now - lastTapMs < TOUCH_DEBOUNCE_MS) {
-    return false;
+    return TOUCH_NONE;
   }
   lastTapMs = now;
-
-  lastRawX = rawX;
-  lastRawY = rawY;
-  lastX = mapAxis(rawX, calXMin, calXMax, SCREEN_WIDTH);
-  lastY = mapAxis(rawY, calYMin, calYMax, SCREEN_HEIGHT);
-
   DBG_INFO("Touch: tap at canvas(%d,%d) raw(%u,%u) pressure %u", lastX, lastY,
-           rawX, rawY, z);
-  return true;
+           lastRawX, lastRawY, pressZ);
+  return TOUCH_TAP;
 }
 
 int16_t touchX() { return lastX; }
