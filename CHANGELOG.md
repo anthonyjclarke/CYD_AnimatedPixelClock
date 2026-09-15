@@ -23,6 +23,12 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
 
 ---
 
+## [Unreleased] — 1.4.0-dev
+
+Nothing yet. See the [Roadmap](README.md#roadmap) for what is queued.
+
+---
+
 ## [1.3.0] 15-09-2026
 
 Two features ported from upstream — the Doom Fire clock style and the ambient
