@@ -1,7 +1,7 @@
 # CYD_AnimatedPixelClock
 
 <!-- Update version badge when FIRMWARE_VERSION changes in include/config.h -->
-![Version](https://img.shields.io/badge/version-1.3.0--dev-blue.svg)
+![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-ESP32-green.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-6.x-orange.svg)
 ![Board](https://img.shields.io/badge/CYD-2.4%22%20%7C%202.8%22%20%7C%204.0%22-yellow.svg)
@@ -72,9 +72,9 @@ Build sizes, all three well inside a 1.792 MB OTA slot:
 
 | Environment    | Flash               | Static RAM       |
 | :------------- | :------------------ | :--------------- |
-| `esp32-cyd-24` | 1,412,753 B (77.0%) | 71,596 B (21.8%) |
-| `esp32-cyd-28` | 1,412,753 B (77.0%) | 71,596 B (21.8%) |
-| `esp32-cyd-40` | 1,405,413 B (76.6%) | 81,596 B (24.9%) |
+| `esp32-cyd-24` | 1,441,817 B (78.6%) | 80,508 B (24.6%) |
+| `esp32-cyd-28` | 1,441,817 B (78.6%) | 80,508 B (24.6%) |
+| `esp32-cyd-40` | 1,434,693 B (78.2%) | 97,836 B (29.9%) |
 
 The canvas is allocated from the heap on top of that: 38.4 KB on the 2.4″ and
 2.8″, 76.8 KB on the 4.0″.
@@ -315,8 +315,7 @@ a desk. Anything genuinely broken is listed as a bug and comes first.
   pages and ~300 lines of `PORTAL_JS` were removed during the port.
 - **Not every clock style has been judged individually.** Mario, Space
   Invaders, Weather, Bomberman, Matrix Rain and Large have been seen running.
-  Doom Fire, ported from upstream after 1.2.0, has only been built so far, as
-  have the four screensaver effects.
+  Doom Fire and the four screensaver effects have been run on hardware too.
   Bomberman's corridor spacing and TRON's approach waypoints are the loosest
   layout inferences and the most likely to need adjusting by eye.
 - **LDR auto-brightness is unverified.** Its thresholds in `include/config.h`

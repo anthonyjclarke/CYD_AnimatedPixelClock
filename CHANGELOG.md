@@ -23,7 +23,12 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
 
 ---
 
-## [Unreleased] — 1.3.0-dev
+## [1.3.0] 15-09-2026
+
+Two features ported from upstream — the Doom Fire clock style and the ambient
+screensaver — plus a long press to start the screensaver, uptime in the web UI
+diagnostics, a Snake fix, and `DEVIATIONS.md` recording how the port differs
+from upstream. Confirmed on hardware.
 
 ### Added
 
