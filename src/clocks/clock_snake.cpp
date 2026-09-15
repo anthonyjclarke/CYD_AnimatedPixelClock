@@ -23,6 +23,7 @@
 #include "../display/display.h"
 #include "clocks.h"
 #include "clock_globals.h"
+#include "debug.h"
 
 // ========== Layout / tuning ==========
 #define SCELL 4                      // grid cell size in pixels
@@ -40,13 +41,20 @@
 #define SNAKE_PELLET_PITCH DIGIT_TEXT_SIZE  // pellet grid pitch = one glyph pixel
 #define SNAKE_PELLETS_PER_DIGIT 5    // how many pellets a digit leaves behind
 #define SNAKE_MAX_PELLETS 35         // 5x7 glyph cells
-#define SNAKE_LEAVE_MAX_STEPS 40     // safety cap waiting for the snake to clear
-#define SNAKE_EAT_MAX_STEPS 80       // safety cap chasing a digit's pellets
+// Safety caps, in snake steps. Upstream sized them for its 32x16 arena; they
+// scale with the arena's span so a snake on the far side of a bigger grid still
+// reaches the digit before the cap gives up on it. 58 / 116 at 40x30, 83 / 166 at 60x40.
+#define SNAKE_LEAVE_MAX_STEPS (40 * (SGRID_W + SGRID_H) / 48)  // waiting for the snake to clear
+#define SNAKE_EAT_MAX_STEPS (80 * (SGRID_W + SGRID_H) / 48)    // chasing a digit's pellets
 
 enum SnakePhase { SNAKE_ROAM, SNAKE_EAT, SNAKE_LEAVE };
 
 struct SnakeCell { int8_t cx, cy; };
-struct SnakePellet { int8_t px, py; bool active; };
+// Pellet position in canvas pixels. Must be wider than int8_t: upstream's 128 px
+// canvas fitted, but on the CYD's the right-hand digits reach x > 127, and a
+// wrapped coordinate put pellets off-screen where the snake could never eat
+// them - the digit then blanked and jumped once the chase gave up.
+struct SnakePellet { int16_t px, py; bool active; };
 
 static const int SNAKE_DIGIT_IDX[4] = {0, 1, 3, 4};  // digit positions (skip colon)
 
@@ -466,6 +474,10 @@ static void updateSnakeAnimation(struct tm *timeinfo) {
     // hang it indefinitely - freezing the clock on the pellet frame until the
     // 60s time-override safety net fired. Mirrors SNAKE_LEAVE_MAX_STEPS.
     if (!found || snake_eat_steps >= SNAKE_EAT_MAX_STEPS) {
+      if (found) {
+        DBG_INFO("Snake: gave up on digit %d after %d steps, %d pellet(s) uneaten",
+                 snake_eating_idx, snake_eat_steps, snake_pellets_left);
+      }
       snake_leaving_idx = snake_eating_idx;
       snake_leaving_val = snake_eat_val;
       snake_eating_idx = -1;
@@ -505,8 +517,12 @@ static void updateSnakeAnimation(struct tm *timeinfo) {
     snakeSteer(tcx, tcy);
     snakeAdvance();
     snake_leave_steps++;
-    if (snakeBodyClearOfDigit(snake_leaving_idx) ||
-        snake_leave_steps > SNAKE_LEAVE_MAX_STEPS) {
+    const bool clear = snakeBodyClearOfDigit(snake_leaving_idx);
+    if (!clear && snake_leave_steps > SNAKE_LEAVE_MAX_STEPS) {
+      DBG_VERBOSE("Snake: digit %d revealed after %d steps with the body still on it",
+                  snake_leaving_idx, snake_leave_steps);
+    }
+    if (clear || snake_leave_steps > SNAKE_LEAVE_MAX_STEPS) {
       snakeRevealAndAdvance();
     }
     return;
