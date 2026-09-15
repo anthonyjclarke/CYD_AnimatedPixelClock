@@ -89,20 +89,41 @@ says what reviving each part would take.
 
 - **PC-statistics mode**, its UDP transport and the Windows/Linux companion app.
 - **Audio spectrum visualizer.**
-- **Ambient screensaver**, the `.pca` custom-animation player and `gif2pca.py`.
+- **The "This is fine" screensaver effect**, the `.pca` custom-animation player
+  and `gif2pca.py`. The other four effects are ported; see below.
 - **HUB75 hardware material:** the bring-up sketch, wiring diagram generator,
   prototype photographs, ESP32-S3 release binaries and the web flasher.
 - **Upstream's `FUNDING.yml`.** Its sponsorship links belong to the upstream
   author.
 - **Web UI:** the Audio visualizer, Display layout and Visible metrics pages,
-  the Ambient screensaver card, and the page script behind them.
-- **API:** `/api/mode/ambient` and `/api/mode/viz`. `/api/mode/clock` and
-  `/api/mode/auto` remain as no-ops so existing Home Assistant automations still
-  work.
+  and the page script behind them.
+- **API:** `/api/mode/viz`. With no PC-stats mode to hand back to,
+  `/api/mode/clock` and `/api/mode/auto` only cancel a forced screensaver.
 - **Settings** for the removed modes. Their NVS keys are simply never read.
 - **Doom Fire's skipped clear.** Upstream skips the render loop's
   `clearDisplay()` for style 17, to avoid a HUB75 scan flash. The CYD canvas is
   off-screen, so the port keeps the clear.
+
+---
+
+## Ambient screensaver
+
+- **Effects.** The port carries upstream's four procedural effects — Space
+  Invaders battle, Pac-Man maze, Starfield and Aquarium — with the schedule
+  window, corner clock, Start/Stop buttons and `/api/mode/ambient`. The "This is
+  fine" burning room and the uploaded `.pca` player stay archived. Effect ids
+  keep upstream's numbers; 2, 5 and 6 fall back to Space Invaders, so an
+  upstream export still imports.
+- **Canvas.** Every sprite is magnified by `SPRITE_SCALE`, and every distance and
+  speed is in sprite pixels. Counts follow the canvas: more stars, fish, bubbles
+  and kelp, a 7×6 invader fleet and a 19×13 maze on 160×120 (6×4 and 13×9 on
+  the 4.0″). At 128×64 each formula gives upstream's own numbers.
+- **Tap.** A tap on the screensaver brings the clock back for a minute
+  (`AMBIENT_PEEK_MS`). While the clock shows, taps change the clock style as
+  usual, each restarting the minute. Upstream has no touch.
+- **Status.** `/api/status` reports `mode` as `ambient` while it runs, plus
+  `forcedAmbient`, and the sidebar reads "Online · screensaver". Starting and
+  stopping are logged.
 
 ---
 

@@ -828,6 +828,49 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
           </div>
 
           <div class="card">
+            <h2 class="card-title">Ambient screensaver</h2>
+            <div class="field">
+              <label class="field-label" for="ambientStyle">Effect</label>
+              <div class="select-wrap">
+                <select name="ambientStyle" id="ambientStyle">
+                  <option value="0" %SEL_AMBIENTSTYLE_0%>Space Invaders</option>
+                  <option value="1" %SEL_AMBIENTSTYLE_1%>Pac-Man chase</option>
+                  <option value="3" %SEL_AMBIENTSTYLE_3%>Starfield</option>
+                  <option value="4" %SEL_AMBIENTSTYLE_4%>Aquarium</option>
+                </select>
+              </div>
+              <p class="field-hint">A full-screen effect shown instead of the clock. Tap the screen while it runs to see the clock for a minute.</p>
+            </div>
+            <label class="check-row standalone" style="margin-top:16px">
+              <input type="checkbox" name="ambientShowClock" id="ambientShowClock" %CHK_AMBIENTSHOWCLOCK%>
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Show small clock</strong><span class="ct-hint">Keeps a small HH:MM in the corner of the effect.</span></span>
+            </label>
+            <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+              <button type="button" class="btn" id="ambStartBtn">Start now</button>
+              <button type="button" class="btn" id="ambStopBtn">Stop / back to normal</button>
+            </div>
+            <p class="field-hint" id="ambRunStatus">Start runs the saved effect until you stop it (or the device reboots). Save first if you changed the effect.</p>
+            <label class="check-row standalone" style="margin-top:16px">
+              <input type="checkbox" name="ambientEnabled" id="ambientEnabled" %CHK_AMBIENTENABLED%>
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Scheduled ambient mode</strong><span class="ct-hint">Also show the effect automatically during set hours.</span></span>
+            </label>
+            <div class="subcard" id="ambientFields" style="display:%DSP_AMBIENTENABLED%">
+              <div class="grid-2">
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="ambientStartHour">From</label>
+                  <div class="select-wrap"><select name="ambientStartHour" id="ambientStartHour">%OPT_AMBSTART%</select></div>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="ambientEndHour">Until</label>
+                  <div class="select-wrap"><select name="ambientEndHour" id="ambientEndHour">%OPT_AMBEND%</select></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
             <h2 class="card-title">CYD hardware<span class="tag">Board</span></h2>
             <div class="check-list">
               <label class="check-row">
@@ -1170,6 +1213,17 @@ var el = $(sel);
 if (el) el.addEventListener('input', function () { wp.value = ''; if (st) st.textContent = 'Custom coordinates.'; });
 });
 })();
+var ambChk = $('#ambientEnabled');
+if (ambChk) { var fa = function () { toggle($('#ambientFields'), ambChk.checked); }; ambChk.addEventListener('change', fa); fa(); }
+function ambCall(path, okMsg) {
+fetch(path).then(function (r) { return r.json(); })
+.then(function () { var s = $('#ambRunStatus'); if (s) s.textContent = okMsg; })
+.catch(function () { var s = $('#ambRunStatus'); if (s) s.textContent = 'Request failed - is the device reachable?'; });
+}
+var ambStart = $('#ambStartBtn');
+if (ambStart) ambStart.addEventListener('click', function () { ambCall('/api/mode/ambient', 'Ambient running. Stop returns to the normal display.'); });
+var ambStop = $('#ambStopBtn');
+if (ambStop) ambStop.addEventListener('click', function () { ambCall('/api/mode/auto', 'Back to normal mode.'); });
 var dn = $('#deviceName');
 if (dn) dn.addEventListener('input', function () {
 var v = dn.value.toLowerCase() || 'pixelclock';
@@ -1318,7 +1372,7 @@ if (led) { led.classList.toggle('online', online); led.classList.toggle('offline
 if (title) title.textContent = text;
 }
 fetch('/api/status').then(function (r) { return r.json(); }).then(function (d) {
-setReadout(true, 'Online · ' + (d.displayOn === false ? 'display off' : (d.clockStyleName || 'clock')));
+setReadout(true, 'Online · ' + (d.mode === 'ambient' ? 'screensaver' : d.displayOn === false ? 'display off' : (d.clockStyleName || 'clock')));
 }).catch(function () { setReadout(false, 'Offline'); });
 }
 refreshStatus();

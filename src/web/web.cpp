@@ -16,6 +16,7 @@
 #include "../notify/notify.h"
 #include "../timezones.h"
 #include "../weather/weather.h"
+#include "../ambient/ambient.h"
 #include "web_pages.h"
 #include <WebServer.h>
 #include <Update.h>
@@ -38,6 +39,7 @@ WebServer server(80);
 
 // Runtime mode override flags (defined in main.cpp)
 extern bool httpForceClock;
+extern bool httpForceAmbient;
 
 // ========== Web Server Setup ==========
 static uint32_t runningFirmwareBytes = 0;
@@ -62,8 +64,6 @@ void setupWebServer() {
  server.on("/api/notify", HTTP_POST, handleNotify);
  server.on("/api/notify/dismiss", HTTP_GET, handleNotifyDismiss);
 
- // Custom animation storage (uploaded .pca files, see tools/gif2pca.py)
-
  // Runtime control API (display power, mode, brightness, clock style, reboot)
  server.on("/api/status", HTTP_GET, handleStatus);
  server.on("/api/display/on", HTTP_GET, handleDisplayOn);
@@ -71,6 +71,7 @@ void setupWebServer() {
  server.on("/api/display/brightness", HTTP_GET, handleSetBrightness);
  server.on("/api/mode/clock", HTTP_GET, handleModeClock);
  server.on("/api/mode/auto", HTTP_GET, handleModeAuto);
+ server.on("/api/mode/ambient", HTTP_GET, handleModeAmbient);
  server.on("/api/clock/style", HTTP_GET, handleSetClockStyle);
  server.on("/api/reboot", HTTP_GET, handleReboot);
 
@@ -173,9 +174,10 @@ void handleStatus() {
  doc["displayOn"] = !isDisplayForcedOff() && !isDisplayScheduledOff() && settings.displayBrightness > 0;
  doc["forcedOff"] = isDisplayForcedOff();
  doc["scheduledOff"] = isDisplayScheduledOff();
- // The CYD port only ever shows a clock; the metrics, ambient and visualizer
- // modes are not built. Reported anyway so existing automations keep parsing.
- doc["mode"] = "clock";
+ // "ambient" while the screensaver shows, otherwise "clock". The metrics and
+ // visualizer modes are not built.
+ doc["mode"] = ambientActive() ? "ambient" : "clock";
+ doc["forcedAmbient"] = httpForceAmbient;
  doc["forcedClock"] = httpForceClock;
  // Rows actually sent to the panel on the last frame, out of SCREEN_HEIGHT.
  // Makes the display layer's change detection measurable on real content.
@@ -230,6 +232,7 @@ void handleSetBrightness() {
 // existing Home Assistant automations.
 void handleModeClock() {
  httpForceClock = true;
+ httpForceAmbient = false;
  server.sendHeader("Access-Control-Allow-Origin", "*");
  server.send(200, "application/json", "{\"success\":true,\"mode\":\"clock\"}");
 }
@@ -237,8 +240,18 @@ void handleModeClock() {
 // GET /api/mode/auto - resume automatic mode
 void handleModeAuto() {
  httpForceClock = false;
+ httpForceAmbient = false;
  server.sendHeader("Access-Control-Allow-Origin", "*");
  server.send(200, "application/json", "{\"success\":true,\"mode\":\"auto\"}");
+}
+
+// GET /api/mode/ambient - show the screensaver now, until /api/mode/auto,
+// /api/mode/clock or a reboot. A tap still shows the clock for a while.
+void handleModeAmbient() {
+ httpForceAmbient = true;
+ httpForceClock = false;
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+ server.send(200, "application/json", "{\"success\":true,\"mode\":\"ambient\"}");
 }
 
 // GET /api/clock/style?id=0-17 - switch the active clock animation
@@ -593,7 +606,22 @@ static bool resolvePlaceholder(const char* n, String& out) {
     return true;
   }
 
-  // --- Ambient window hour dropdowns (whole hours) ---
+  // --- Ambient screensaver ---
+  if (!strcmp(n, "OPT_AMBSTART") || !strcmp(n, "OPT_AMBEND")) {
+    uint8_t selHour = (!strcmp(n, "OPT_AMBSTART")) ? settings.ambientStartHour
+                                                   : settings.ambientEndHour;
+    for (int i = 0; i < 24; i++) {
+      out += "<option value=\"" + String(i) + "\"" + (selHour == i ? " selected" : "") + ">" + String(i) + ":00</option>";
+    }
+    return true;
+  }
+  if (!strcmp(n, "CHK_AMBIENTENABLED")) { out = String(settings.ambientEnabled ? "checked" : ""); return true; }
+  if (!strcmp(n, "DSP_AMBIENTENABLED")) { out = String(settings.ambientEnabled ? "block" : "none"); return true; }
+  if (!strcmp(n, "SEL_AMBIENTSTYLE_0")) { out = String(settings.ambientStyle == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_AMBIENTSTYLE_1")) { out = String(settings.ambientStyle == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_AMBIENTSTYLE_3")) { out = String(settings.ambientStyle == 3 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_AMBIENTSTYLE_4")) { out = String(settings.ambientStyle == 4 ? "selected" : ""); return true; }
+  if (!strcmp(n, "CHK_AMBIENTSHOWCLOCK")) { out = String(settings.ambientShowClock ? "checked" : ""); return true; }
 
   // --- Scheduled dim / power-off HH:MM values (native time inputs) ---
   if (!strcmp(n, "V_DIMSTART") || !strcmp(n, "V_DIMEND") ||
@@ -1300,6 +1328,20 @@ void handleSave() {
  settings.doomBurningDigits = server.hasArg("doomBurningDigits");
  settings.doomSmoothFire = server.hasArg("doomSmoothFire");
 
+ // Save ambient screensaver settings (guard on a field that always posts so a
+ // partial form cannot silently disable them)
+ if (server.hasArg("ambientStyle")) {
+   settings.ambientEnabled = server.hasArg("ambientEnabled");
+   settings.ambientStyle = normalizeAmbientStyle(server.arg("ambientStyle").toInt());
+   if (server.hasArg("ambientStartHour")) {
+     settings.ambientStartHour = (uint8_t)constrain(server.arg("ambientStartHour").toInt(), 0, 23);
+   }
+   if (server.hasArg("ambientEndHour")) {
+     settings.ambientEndHour = (uint8_t)constrain(server.arg("ambientEndHour").toInt(), 0, 23);
+   }
+   settings.ambientShowClock = server.hasArg("ambientShowClock");
+ }
+
  // Save Snake settings
  if (server.hasArg("snakeSpeed")) {
  settings.snakeSpeed = server.arg("snakeSpeed").toInt();
@@ -1578,6 +1620,11 @@ void handleExportConfig() {
  json += "\"doomShowDate\":" + String(settings.doomShowDate ? "true" : "false") + ",";
  json += "\"doomBurningDigits\":" + String(settings.doomBurningDigits ? "true" : "false") + ",";
  json += "\"doomSmoothFire\":" + String(settings.doomSmoothFire ? "true" : "false") + ",";
+ json += "\"ambientEnabled\":" + String(settings.ambientEnabled ? "true" : "false") + ",";
+ json += "\"ambientStyle\":" + String(settings.ambientStyle) + ",";
+ json += "\"ambientStartHour\":" + String(settings.ambientStartHour) + ",";
+ json += "\"ambientEndHour\":" + String(settings.ambientEndHour) + ",";
+ json += "\"ambientShowClock\":" + String(settings.ambientShowClock ? "true" : "false") + ",";
  json += "\"timezoneString\":\"" + String(settings.timezoneString) + "\",";
  json += "\"gmtOffset\":" + String(settings.gmtOffset) + ",";
  json += "\"daylightSaving\":" + String(settings.daylightSaving ? "true" : "false") + ",";
@@ -1724,6 +1771,11 @@ void handleImportConfig() {
  if (!doc["doomShowDate"].isNull()) settings.doomShowDate = doc["doomShowDate"];
  if (!doc["doomBurningDigits"].isNull()) settings.doomBurningDigits = doc["doomBurningDigits"];
  if (!doc["doomSmoothFire"].isNull()) settings.doomSmoothFire = doc["doomSmoothFire"];
+ if (!doc["ambientEnabled"].isNull()) settings.ambientEnabled = doc["ambientEnabled"];
+ if (!doc["ambientStyle"].isNull()) settings.ambientStyle = normalizeAmbientStyle(doc["ambientStyle"].as<int>());
+ if (doc["ambientStartHour"].is<int>()) settings.ambientStartHour = (uint8_t)constrain(doc["ambientStartHour"].as<int>(), 0, 23);
+ if (doc["ambientEndHour"].is<int>()) settings.ambientEndHour = (uint8_t)constrain(doc["ambientEndHour"].as<int>(), 0, 23);
+ if (!doc["ambientShowClock"].isNull()) settings.ambientShowClock = doc["ambientShowClock"];
  if (!doc["clockStyle"].isNull()) settings.clockStyle = doc["clockStyle"];
  if (!doc["timezoneString"].isNull()) {
  const char* tz = doc["timezoneString"];

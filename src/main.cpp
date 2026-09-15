@@ -20,6 +20,8 @@
 #include <WebServer.h>
 #include <WiFi.h>
 #include <WiFiManager.h>
+
+#include "ambient/ambient.h"
 #include <esp_task_wdt.h>
 #include <time.h>
 
@@ -51,6 +53,7 @@ unsigned long wifiDisconnectTime = 0;
 unsigned long nextDisplayUpdate = 0;
 bool wifiConnected = false;   // WiFi connection status for icon display
 bool httpForceClock = false;  // HTTP override to force clock mode (via /api/mode/clock)
+bool httpForceAmbient = false;  // HTTP override to show the screensaver (via /api/mode/ambient)
 
 // ========== Module Includes ==========
 #include "clocks/clock_globals.h"
@@ -101,6 +104,12 @@ int getOptimalRefreshRate() {
   // A notification banner may scroll over any screen - keep it silky.
   if (notifyActive()) {
     return 60;
+  }
+
+  // Screensaver effects redraw the whole canvas every frame. 30 Hz, as upstream:
+  // they look the same, and it halves the pixels pushed per second.
+  if (ambientActive()) {
+    return 30;
   }
 
   // Boost during active motion for smooth animation.
@@ -384,8 +393,18 @@ void loop() {
   updateLdr();
   updateRgbLed();
   if (touchTapped()) {
-    advanceClockStyle();
+    if (ambientActive()) {
+      // A tap on the screensaver brings the clock back for a while.
+      ambientPeekClock();
+    } else {
+      // A tap on a visible clock changes the style, as always - including while
+      // the screensaver has stepped aside, when it also restarts that time so
+      // the new style gets its full minute.
+      advanceClockStyle();
+      if (ambientPeeking()) ambientPeekClock();
+    }
   }
+  ambientUpdate();
 
   // Handle web server requests
   server.handleClient();
@@ -446,7 +465,11 @@ void loop() {
     }
 
     display.clearDisplay();
-    renderActiveClock();
+    if (ambientActive()) {
+      displayAmbient();
+    } else {
+      renderActiveClock();
+    }
 
     // Notification banner draws over whatever screen is active.
     if (notifyActive()) {

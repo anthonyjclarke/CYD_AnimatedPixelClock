@@ -86,6 +86,13 @@ struct Settings {
   bool doomBurningDigits;      // Digits feed the fire and throw their own flames
   bool doomSmoothFire;         // Soften the flames off the digits (ground fire untouched)
 
+  // Ambient screensaver (scheduled or forced, replaces the clock)
+  bool ambientEnabled;         // Enable the scheduled window
+  uint8_t ambientStyle;        // 0=Space Invaders, 1=Pac-Man maze, 3=Starfield, 4=Aquarium
+  uint8_t ambientStartHour;    // Window start (0-23, wraps midnight)
+  uint8_t ambientEndHour;      // Window end (0-23)
+  bool ambientShowClock;       // Small HH:MM overlay in the corner
+
   // Mario clock settings
   uint8_t marioBounceHeight;  // Tenths (40 = 4.0)
   uint8_t marioBounceSpeed;   // Tenths (6 = 0.6)

@@ -118,6 +118,7 @@ void sanitizeBrightnessSettings() {
 }
 
 #include "../clocks/cycle_config.h"
+#include "../ambient/ambient.h"
 
 void loadSettings() {
   strcpy(settings.cycleConfig, CYCLE_DEFAULT);
@@ -170,6 +171,11 @@ void loadSettings() {
     settings.doomShowDate = false;
     settings.doomBurningDigits = true;
     settings.doomSmoothFire = false;
+    settings.ambientEnabled = false;
+    settings.ambientStyle = AMBIENT_INVADERS;
+    settings.ambientStartHour = 20;
+    settings.ambientEndHour = 23;
+    settings.ambientShowClock = true;
     settings.marioBounceHeight = 35; // Default: 3.5 (35 = 3.5 in tenths)
     settings.marioBounceSpeed = 6;   // Default: 0.6 (6 = 0.6 in tenths)
     settings.marioSmoothAnimation = false; // Default: 2-frame animation
@@ -241,6 +247,13 @@ void loadSettings() {
   settings.doomShowDate = preferences.getBool("dmDate", false);      // Default: centred clock
   settings.doomBurningDigits = preferences.getBool("dmBurn", true);  // Default: digits throw flames
   settings.doomSmoothFire = preferences.getBool("dmSmooth", false);  // Default: blocky retro flames
+  // Ambient screensaver - upstream's keys and defaults. Effects this build does
+  // not carry (2, 5, 6) fall back to Space Invaders.
+  settings.ambientEnabled = preferences.getBool("ambEn", false);                        // Default: off
+  settings.ambientStyle = normalizeAmbientStyle(preferences.getUChar("ambStyle", 0));    // Default: Space Invaders
+  settings.ambientStartHour = preferences.getUChar("ambStart", 20) % 24;                // Default: 8 PM
+  settings.ambientEndHour = preferences.getUChar("ambEnd", 23) % 24;                    // Default: 11 PM
+  settings.ambientShowClock = preferences.getBool("ambClock", true);                    // Default: show time
   if (settings.clockStyle == 13) settings.clockStyle = 1;    // retired Missile Command -> Standard
 
   // gmtOffset migration: convert old hours to new minutes format
@@ -633,6 +646,11 @@ void saveSettings() {
   preferences.putBool("dmDate", settings.doomShowDate);
   preferences.putBool("dmBurn", settings.doomBurningDigits);
   preferences.putBool("dmSmooth", settings.doomSmoothFire);
+  preferences.putBool("ambEn", settings.ambientEnabled);
+  preferences.putUChar("ambStyle", settings.ambientStyle);
+  preferences.putUChar("ambStart", settings.ambientStartHour);
+  preferences.putUChar("ambEnd", settings.ambientEndHour);
+  preferences.putBool("ambClock", settings.ambientShowClock);
   preferences.putBool("tetIdleTmbl", settings.tetrisIdleTumble);
   preferences.putUChar("tetAnimSty", settings.tetrisAnimStyle);
   preferences.putBool("tetShowDate", settings.tetrisShowDate);

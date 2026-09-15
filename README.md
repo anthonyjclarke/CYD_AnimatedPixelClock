@@ -232,6 +232,10 @@ Weather is only fetched while it can be shown — with the Weather style selecte
 or in a Cycle All rotation that includes it — so after a reboot on another style
 the Weather screen takes a few seconds to fill in when you switch to it.
 
+A screensaver — Space Invaders, Pac-Man, a starfield or an aquarium — can
+replace the clock during set hours, or on demand from the Display page. Tap the
+screen while it runs to see the clock for a minute.
+
 A factory reset at `http://pixelclock.local/reset` erases every setting **and**
 the WiFi credentials, and the device restarts as the `PixelClock-Setup` access
 point.
@@ -240,8 +244,8 @@ point.
 
 ## What this port leaves out
 
-Upstream's PC-statistics mode, audio spectrum visualizer, ambient screensavers
-and custom `.pca` animation player are **not** built here. They are preserved
+Upstream's PC-statistics mode, audio spectrum visualizer, "This is fine"
+screensaver and custom `.pca` animation player are **not** built here. They are preserved
 under `archive/` along with the HUB75 hardware assets and the upstream ESP32-S3
 release binaries — see [`archive/README.md`](archive/README.md) for what each
 folder holds and what reviving it would involve.
@@ -309,7 +313,8 @@ a desk. Anything genuinely broken is listed as a bug and comes first.
   pages and ~300 lines of `PORTAL_JS` were removed during the port.
 - **Not every clock style has been judged individually.** Mario, Space
   Invaders, Weather, Bomberman, Matrix Rain and Large have been seen running.
-  Doom Fire, ported from upstream after 1.2.0, has only been built so far.
+  Doom Fire, ported from upstream after 1.2.0, has only been built so far, as
+  have the four screensaver effects.
   Bomberman's corridor spacing and TRON's approach waypoints are the loosest
   layout inferences and the most likely to need adjusting by eye.
 - **LDR auto-brightness is unverified.** Its thresholds in `include/config.h`
@@ -328,8 +333,8 @@ a desk. Anything genuinely broken is listed as a bug and comes first.
   digits in every style, and only Mario fills it.
 - **Use the spare canvas in the text styles.** Standard and Large still centre a
   clock with room to spare.
-- **Revive an archived subsystem.** Ambient screensavers, the audio visualizer
-  and PC-metrics mode are intact under `archive/`, written against the same
+- **Revive an archived subsystem.** The "This is fine" screensaver, the audio
+  visualizer and PC-metrics mode are intact under `archive/`, written against the same
   Adafruit-GFX surface. Each would need the layout rework the clock styles had.
 - **Tetris small-clock mode by default.** It gives a 25-row well instead of 11,
   a better showcase on this canvas, but it changes behaviour rather than sizing,

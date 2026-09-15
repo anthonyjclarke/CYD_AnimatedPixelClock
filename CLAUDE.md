@@ -92,6 +92,7 @@ its owning module, and a factory reset asks each module to clear its own. The
 ## Archive
 
 `archive/` holds upstream assets this port does not build — PC metrics, the
-visualizer, ambient screensavers, the `.pca` player and all HUB75 material.
+visualizer, the "This is fine" screensaver, the `.pca` player and all HUB75
+material.
 Nothing there is compiled; `archive/README.md` says what restoring each takes. A
 pristine upstream copy sits at `PlatformIO/Projects/AnimatedPixelClock`.

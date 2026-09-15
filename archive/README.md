@@ -57,11 +57,12 @@ restore them.
 | :----------------- | :------------------------------------------ | :---------------------------------------- |
 | `metrics/`         | PC statistics screens, UDP packet decoding  | Restore UDP listener and `displayStats()` |
 | `viz/`             | Audio visualizer – oscilloscope, starfield  | Restore the `vizShouldDisplay()` branch   |
-| `ambient/`         | Screensavers and the LittleFS `.pca` player | Mount LittleFS; restore `ambientActive()` |
+| `ambient/`         | This is fine scene, LittleFS `.pca` player  | Mount LittleFS; add to `displayAmbient()` |
 | `matrix_display.h` | HUB75 DMA panel shim (Adafruit GFX wrapper) | None – see `src/display/cyd_display.h`    |
 
-The ambient player's LittleFS data can live on the `spiffs` partition this port
-keeps unused for exactly that purpose.
+The four procedural screensaver effects are ported to `src/ambient/`; only the
+"This is fine" scene and the `.pca` player remain here. The player's LittleFS
+data can live on the `spiffs` partition this port keeps unused for that purpose.
 
 Every one of these was written against the same Adafruit\_GFX call surface the CYD
 display layer provides, so a revival is a scope decision rather than a rewrite.

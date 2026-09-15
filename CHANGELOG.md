@@ -45,6 +45,12 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
   flash; the change was not ported.
 - `DEVIATIONS.md`: a standing record of every way the port differs from
   upstream, kept current in the same commit as each change.
+- **Ambient screensaver, ported from upstream.** Space Invaders battle, Pac-Man
+  maze, Starfield and Aquarium replace the clock during a scheduled window of
+  hours, or on demand from the Display page and `/api/mode/ambient`, with an
+  optional corner clock. Each effect is re-laid-out for the CYD canvas. A tap
+  while it runs shows the clock for a minute. Upstream's "This is fine" scene
+  and uploaded-animation player stay archived.
 
 ---
 

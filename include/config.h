@@ -182,6 +182,11 @@ constexpr uint8_t RGB_LED_B = 17;
 #define HAS_RGB_LED 0
 #endif
 
+// ====================== Ambient screensaver ==============================
+// How long a tap on the screensaver shows the clock before the effect resumes
+// (ms). Taps while the clock shows change its style and restart the time.
+constexpr uint32_t AMBIENT_PEEK_MS = 60000;
+
 // ====================== Backlight (PWM) ==================================
 // Replaces the HUB75 panel's setBrightness8(). TFT_BL is a build flag: GPIO 21
 // on the 2.8" board, GPIO 27 on the 4.0".
