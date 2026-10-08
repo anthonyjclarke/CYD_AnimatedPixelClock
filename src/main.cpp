@@ -24,6 +24,7 @@
 #include "ambient/ambient.h"
 #include "display/display.h"
 #include "health/boot_health.h"
+#include "network/improv_setup.h"
 #include <esp_task_wdt.h>
 #include <time.h>
 
@@ -299,6 +300,10 @@ void setup() {
   // block) failed to allocate there.
   display.allocateBuffer();
 
+  // Improv-Serial answers from here on (setup portal and loop()); see
+  // src/network/improv_setup.h.
+  improvBegin();
+
   // OTA image state and the last crash report (src/health). After the canvas,
   // so its brief heap use cannot fragment the block the 4.0" canvas needs.
   healthBegin();
@@ -471,6 +476,10 @@ void loop() {
   // Handle web server requests
   server.handleClient();
   loopMark("web server");
+
+  // Web installer over USB: device info, WiFi changes. See improv_setup.h.
+  improvTick();
+  loopMark("improv");
 
   // Retry NTP sync periodically if not synced
   if (!ntpSynced && millis() - lastNtpSyncTime > 30000) {

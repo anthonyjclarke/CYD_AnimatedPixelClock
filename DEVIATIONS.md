@@ -232,6 +232,15 @@ empty, not as a matter of taste.
 
 ## Build, logging and versioning
 
+- **Improv-Serial on every boot.** Upstream opens a three-minute Improv window
+  only on a device with no saved WiFi. The port listens in the setup portal
+  and in `loop()`, so the web installer can recognise the firmware and update
+  it without erasing settings. A failed "Change WiFi" restores the previous
+  network.
+- **Improv library vendored.** `jnthas/Improv WiFi Library` 0.0.2 lives in
+  `lib/ImprovWiFi` with a parser fix (every second request was dropped).
+  Upstream takes it from the registry.
+
 - **Logging.** All `Serial.print` calls are leveled `DBG_*` macros from
   `include/debug.h`, with the level settable at runtime through `/api/debug`.
 - **Versioning.** The port restarted at 1.0.0; `UPSTREAM_VERSION` in

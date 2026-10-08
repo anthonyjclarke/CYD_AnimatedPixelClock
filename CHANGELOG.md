@@ -54,6 +54,26 @@ AnimatedPixelClock, by Nikolay Miroshnichenko. Neither is in upstream.
   partition. `firmware.bin` is unchanged and is still the file for the web UI's
   update.
 
+### Changed
+
+- **Improv-Serial listens on every boot**, in the setup portal and in `loop()`,
+  not only on a device with no saved WiFi. ESP Web Tools can then recognise
+  the firmware on Connect and offer **Update** (no erase, settings kept),
+  **Visit device** and **Change WiFi**. `IMPROV_SETUP_WINDOW_MS` is gone.
+- **Changing WiFi over Improv is safe to get wrong.** If the new network does
+  not connect within 15 s, the previous one is restored and saved again, so
+  a typo no longer replaces working credentials. The wait feeds the task
+  watchdog.
+
+### Fixed
+
+- **Every second Improv request went unanswered.** The library stored the
+  checksum byte of a handled frame as the start of the next, so ESP Web Tools'
+  device-info request after its state request was dropped. The library is now
+  vendored in `lib/ImprovWiFi` with a one-line fix (still present upstream in
+  0.0.4). Improv also reads every waiting byte per pass instead of one, so a
+  request is answered in about 50 ms.
+
 ---
 
 ## [1.3.0] 15-09-2026

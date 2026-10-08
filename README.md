@@ -209,7 +209,8 @@ pio run -e esp32-cyd-24 -t upload -t monitor
 ```
 
 WiFi is provisioned through the `PixelClock-Setup` captive portal or over USB
-with Improv-Serial. Credentials are never stored in source. If a board's AP mode
+with Improv-Serial, which listens on every boot so a browser installer can
+also change WiFi or update a running clock. Credentials are never stored in source. If a board's AP mode
 is faulty, copy `include/secrets.h.example` to `include/secrets.h` (gitignored)
 and fill in your network; it is picked up automatically.
 

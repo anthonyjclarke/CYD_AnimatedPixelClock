@@ -72,6 +72,8 @@ geometry. Doom Fire's fire grid is half resolution (2×2 px cells) on purpose.
   `UPSTREAM_*` in `include/config.h`; `LICENSE` keeps both copyrights.
 - **Never change how the port differs from upstream without updating
   `DEVIATIONS.md` in the same commit** — added, removed or reworked behaviour.
+- **Never put the Improv library back in `lib_deps`.** It is vendored in
+  `lib/ImprovWiFi` with a parser fix; the registry copy drops every 2nd request.
 - **Never restore `.github/FUNDING.yml`** — those links are the upstream author's.
 
 ## Deliberate deviations from the global rules
@@ -86,14 +88,12 @@ geometry. Doom Fire's fire grid is half resolution (2×2 px cells) on purpose.
 ## Persistence
 
 NVS namespace `pixelclock`; touch calibration in `cydtouch`; crash report in
-`health`. Each is named only in
-its owning module, and a factory reset asks each module to clear its own. The
-384 KB `spiffs` partition is unused, kept so a filesystem can be added later.
+`health`. Each is named only in its owning module, and a factory reset asks
+each module to clear its own. The 384 KB `spiffs` partition is unused.
 
 ## Archive
 
 `archive/` holds upstream assets this port does not build — PC metrics, the
 visualizer, the "This is fine" screensaver, the `.pca` player and all HUB75
-material.
-Nothing there is compiled; `archive/README.md` says what restoring each takes. A
-pristine upstream copy sits at `PlatformIO/Projects/AnimatedPixelClock`.
+material. Nothing there is compiled; `archive/README.md` says what restoring
+each takes. A pristine upstream copy sits at `PlatformIO/Projects/AnimatedPixelClock`.

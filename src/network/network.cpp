@@ -163,34 +163,19 @@ void initNetwork() {
 
 #if IMPROV_SETUP_ENABLED
   if (!connected) {
-    // autoConnect() started the captive portal (non-blocking). On genuinely
-    // fresh devices (no stored SSID) also open an Improv-Serial window so a
-    // browser that just flashed via the web flasher can push credentials over
-    // USB. Returning users who only mistyped a password get the AP portal
-    // alone - they need to fix what they typed, not a serial dialog over a
-    // port that may not even be connected anymore.
-    bool freshDevice = !wifiManager.getWiFiIsSaved();
-    if (freshDevice) {
-      improvSetupBegin(IMPROV_SETUP_WINDOW_MS);
-    }
-
+    // autoConnect() started the captive portal (non-blocking). Improv-Serial
+    // is serviced alongside it, so a browser on USB - the web installer's
+    // "Configure WiFi" - can push credentials instead. It listens whether or
+    // not WiFi was saved before; with no browser attached it costs nothing.
     while (!connected && wifiManager.getConfigPortalActive()) {
       // Service the captive portal (DNS + web server).
       if (wifiManager.process()) {
         connected = true;
         break;
       }
-      // Service Improv-Serial. On success the library has already saved the
-      // credentials and connected STA, so restart for a clean STA-only boot.
-      if (freshDevice && improvSetupTick()) {
-        DBG_ERROR("Improv: credentials received, restarting");
-        Serial.flush();
-        delay(200);  // let the response reach the browser before reset
-        ESP.restart();
-      }
+      improvTick();  // restarts once Improv credentials connect
       delay(5);
     }
-    improvSetupEnd();
   }
 #endif
 

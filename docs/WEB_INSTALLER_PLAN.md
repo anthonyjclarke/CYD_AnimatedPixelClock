@@ -164,6 +164,15 @@ settings.
 
 ### Phase 2 – Improv on every boot
 
+**Status 09-10-2026: done, tested on a 2.8″.** A Python probe that mimics
+ESP Web Tools' Connect gets state + device info in about 100 ms in total. A
+"Change WiFi" to a network that doesn't exist fails after 15 s without a
+watchdog reset, the old network is back 1 s later, and it survives a reset.
+Opening the port from pyserial on macOS did not reset the board. Chrome's
+Web Serial still needs checking in Phase 3. Testing found a library bug that
+dropped every second request. The library is vendored in `lib/ImprovWiFi` with
+a one-line fix; 0.0.4 still has the bug. Upstreaming the fix is worth doing.
+
 - Arm Improv right after `Serial.begin()` and pump it from `loop()` on a
   `millis()` cadence. On a provisioned device it only answers *device info* and
   *current state*.

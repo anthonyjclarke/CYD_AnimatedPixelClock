@@ -269,9 +269,9 @@ constexpr uint32_t LOOP_SLOW_PART_MS = 200;
 #define QR_SETUP_ENABLED 1  // 1 = QR code, 0 = text instructions
 
 // ================== Improv-Serial WiFi Setup (USB) =======================
-// In-browser WiFi provisioning over the CYD's CP2102 bridge. Active only on
-// first boot (no saved WiFi); the WiFiManager AP portal runs in parallel as a
-// fallback. Costs nothing if no browser is listening. Set to 0 to reclaim
-// flash if the app partition ever gets tight.
+// In-browser WiFi provisioning over the CYD's USB bridge, listening on every
+// boot - in the setup portal and in loop() - so the web installer can set WiFi
+// and recognise this firmware for an update. The WiFiManager AP portal runs
+// in parallel as a fallback. Costs nothing if no browser is listening. Set to
+// 0 to reclaim flash if the app partition ever gets tight.
 #define IMPROV_SETUP_ENABLED 1
-constexpr uint32_t IMPROV_SETUP_WINDOW_MS = 180000;  // 3-min listen window

@@ -1,27 +1,21 @@
 /*
  * CYD_AnimatedPixelClock - Improv-Serial WiFi Provisioning
  *
- * Non-blocking Improv-Serial setup window for browser-based provisioning such
- * as ESP Web Tools. After flashing, the browser probes the device for
- * Improv-Serial and presents a "Configure WiFi" dialog right in the browser
- * tab - the user picks their network and the credentials are pushed over USB.
+ * Improv-Serial over the CYD's USB bridge, listening on every boot - not only
+ * on a fresh device as upstream does. ESP Web Tools uses it two ways:
  *
- * The window runs cooperatively while the WiFiManager AP captive portal stays
- * up in parallel, so users who don't catch the browser dialog still get the
- * PixelClock-Setup hotspot fallback without any extra wait.
+ *  - After an install it waits up to 10s for Improv and offers "Configure
+ *    WiFi", pushing the credentials over USB.
+ *  - On Connect it asks for device info within 1.5s. A reply naming this
+ *    firmware (PROJECT_NAME) makes it offer "Update" - written without an
+ *    erase, so settings survive - instead of "Install" and an erase prompt.
+ *    It also offers "Visit device" and "Change WiFi".
+ *
+ * So the listener must answer from the setup portal loop and from loop(). It
+ * costs nothing when no browser is attached; the WiFiManager AP portal runs in
+ * parallel on a device with no WiFi.
  *
  * Enabled via IMPROV_SETUP_ENABLED in include/config.h.
- *
- * Typical lifecycle from initNetwork() (non-blocking WiFiManager portal):
- *   wifiManager.setConfigPortalBlocking(false);
- *   if (!wifiManager.autoConnect(...)) {
- *     if (!wifiManager.getWiFiIsSaved()) improvSetupBegin(IMPROV_SETUP_WINDOW_MS);
- *     while (!connected && wifiManager.getConfigPortalActive()) {
- *       if (wifiManager.process()) { connected = true; break; }
- *       if (improvSetupTick()) ESP.restart();   // creds saved by callback
- *     }
- *     improvSetupEnd();
- *   }
  */
 
 #ifndef IMPROV_SETUP_H
@@ -31,25 +25,19 @@
 
 #if IMPROV_SETUP_ENABLED
 
-#include <Arduino.h>
+// Set the device info Improv reports. Call once, early in setup().
+void improvBegin();
 
-// Arm a Serial Improv listener for `windowMs` milliseconds. Pump
-// improvSetupTick() from the portal loop; the AP captive portal stays up in
-// parallel so legacy / hotspot users keep AP access without any extra wait.
-void improvSetupBegin(uint32_t windowMs);
+// Service Improv-Serial: from the setup portal loop and every loop() pass.
+// When new credentials arrive and connect, they are already saved; this logs
+// it and restarts so the device comes up cleanly on the new network. If they
+// fail, the previous network is restored.
+void improvTick();
 
-// Pump the Improv parser. Returns true exactly once - when valid WiFi
-// credentials have been received AND a STA connection succeeded. The
-// credentials are already persisted to the ESP WiFi NVS at that point (so
-// WiFiManager.autoConnect() finds them next boot); the caller is expected to
-// ESP.restart() so the device boots cleanly into STA mode.
-bool improvSetupTick();
+#else
 
-// True once the setup window has elapsed without success. Callers should then
-// improvSetupEnd() to release resources; the AP stays up regardless.
-bool improvSetupExpired();
-
-void improvSetupEnd();
+inline void improvBegin() {}
+inline void improvTick() {}
 
 #endif // IMPROV_SETUP_ENABLED
 #endif // IMPROV_SETUP_H
