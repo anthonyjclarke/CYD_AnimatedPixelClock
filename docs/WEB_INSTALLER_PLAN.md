@@ -240,7 +240,9 @@ a one-line fix; 0.0.4 still has the bug. Upstreaming the fix is worth doing.
 
 ### Phase 4 – GitHub Actions release (`.github/workflows/firmware.yml`)
 
-**Status 09-10-2026: written, not yet run on GitHub.** One workflow builds every
+**Status 09-10-2026: build path passes on GitHub** (run `37834182049`, about
+3 min cold, all three boards, `site-preview` artifact 2.7 MB). The publish
+path first runs at the `v1.4.0` tag. One workflow builds every
 push and PR, and only a valid tag publishes. It uses actions current at
 Oct 2026 (`checkout@v7`, `upload-pages-artifact@v5`, `deploy-pages@v5`,
 `action-gh-release@v3`), with PlatformIO pinned at 6.1.19. A local dry run of
@@ -271,14 +273,29 @@ release builds and is then refused at deploy.
 
 ### Phase 5 – hardware test matrix
 
-| Case                                   | Expect                       |
-|:---------------------------------------|:-----------------------------|
-| Fresh install, erase, each board       | Improv WiFi → clock runs     |
-| Update on provisioned device           | "Update", settings kept      |
-| Device last updated via web OTA (app1) | New version boots            |
-| Wrong board picked                     | Garbled; reflash recovers    |
-| `*-firmware.bin` via web UI `/update`  | Updates normally             |
-| Windows + macOS, Chrome + Edge         | Port found, flash completes  |
+| Case                                | Expect                    | Status 09-10-2026        |
+|:------------------------------------|:--------------------------|:-------------------------|
+| Fresh install, erase, each board    | Improv WiFi → clock runs  | Pass – 2.8″ from blank   |
+| Update on provisioned device        | "Update", settings kept   | Pass – 2.8″ and 4.0″     |
+| Last updated via web OTA (app1)     | New version boots         | Pass – 2.8″ back on app0 |
+| Wrong board picked                  | Garbled; reflash recovers | Pass – dark, then recovers |
+| `*-firmware.bin` via `/update`      | Updates normally          | Pass – 2.8″ to app1      |
+| macOS Chrome                        | Port found, flash done    | Pass                     |
+| Windows, Edge                       | Port found, flash done    | Optional – needs you     |
+
+Fresh install: the 2.8″ was erased completely (NVS read back blank), then
+installed in Chrome. It was offered **Install** with the erase question, then
+**Configure WiFi** over Improv, and **Visit device** opened the clock's page.
+It came up on `app0`, joined WiFi, synced NTP and recorded no crash. This is
+also the first real test of a successful Improv WiFi change. The 4.0″ and
+2.4″ weren't installed from blank; they use the same manifest path, and the
+4.0″ passed Update.
+
+Wrong board: the 4.0″ image written to a 2.8″ as the installer would (four
+parts, no erase) boots without crashing. It reports a 4.0″, keeps its settings
+and rejoins WiFi, so only the screen is wrong. On the 2.8″ it stays dark,
+because the 4.0″ build lights GPIO 27 and that board's backlight is on GPIO 21.
+Writing the 2.8″ parts restored it, with settings and WiFi intact.
 
 ### Phase 6 – documentation
 
