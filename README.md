@@ -1,7 +1,7 @@
 # CYD_AnimatedPixelClock
 
 <!-- Update version badge when FIRMWARE_VERSION changes in include/config.h -->
-![Version](https://img.shields.io/badge/version-1.4.0--dev-blue.svg)
+![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-ESP32-green.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-6.x-orange.svg)
 ![Board](https://img.shields.io/badge/CYD-2.4%22%20%7C%202.8%22%20%7C%204.0%22-yellow.svg)
@@ -96,9 +96,9 @@ Build sizes, all three well inside a 1.792 MB OTA slot:
 
 | Environment    | Flash               | Static RAM       |
 | :------------- | :------------------ | :--------------- |
-| `esp32-cyd-24` | 1,441,817 B (78.6%) | 80,508 B (24.6%) |
-| `esp32-cyd-28` | 1,441,817 B (78.6%) | 80,508 B (24.6%) |
-| `esp32-cyd-40` | 1,434,693 B (78.2%) | 97,836 B (29.9%) |
+| `esp32-cyd-24` | 1,449,925 B (79.0%) | 80,888 B (24.7%) |
+| `esp32-cyd-28` | 1,449,925 B (79.0%) | 80,888 B (24.7%) |
+| `esp32-cyd-40` | 1,442,765 B (78.6%) | 98,216 B (30.0%) |
 
 The canvas is allocated from the heap on top of that: 38.4 KB on the 2.4″ and
 2.8″, 76.8 KB on the 4.0″.

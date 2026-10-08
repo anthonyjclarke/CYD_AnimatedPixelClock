@@ -25,12 +25,20 @@ and deploys the web installer. Nothing is published by hand.
 
 ---
 
-## [Unreleased] — 1.4.0-dev
+## [1.4.0] 09-10-2026
+
+A browser installer and the firmware changes it needs. Each `v*` tag now
+publishes a GitHub release and deploys an ESP Web Tools installer to GitHub
+Pages. Improv-Serial listens on every boot, so a running clock is offered
+**Update**, which keeps its settings. Also included: OTA rollback, crash
+reports and loop diagnostics, ported from NickoScope's fork. Confirmed on a
+2.8″ and a 4.0″: fresh install, update, update after a web OTA, and a wrong
+board.
 
 ### Added
 
-Both of these are ported from [NickoScope's fork][nicko-fork] of
-AnimatedPixelClock, by Nikolay Miroshnichenko. Neither is in upstream.
+The first three are ported from [NickoScope's fork][nicko-fork] of
+AnimatedPixelClock, by Nikolay Miroshnichenko. None of them is in upstream.
 
 [nicko-fork]: https://github.com/NickoScope/AnimatedPixelClock
 
