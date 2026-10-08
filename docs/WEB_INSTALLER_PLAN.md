@@ -238,7 +238,16 @@ a one-line fix; 0.0.4 still has the bug. Upstreaming the fix is worth doing.
   (`custom_installer_label`, `custom_installer_image`). A new board is then
   still only a new `[env:]` block.
 
-### Phase 4 – GitHub Actions release (`.github/workflows/release.yml`)
+### Phase 4 – GitHub Actions release (`.github/workflows/firmware.yml`)
+
+**Status 09-10-2026: written, not yet run on GitHub.** One workflow builds every
+push and PR, and only a valid tag publishes. It uses actions current at
+Oct 2026 (`checkout@v7`, `upload-pages-artifact@v5`, `deploy-pages@v5`,
+`action-gh-release@v3`), with PlatformIO pinned at 6.1.19. A local dry run of
+its shell steps refuses a `-dev` tag and a mismatched tag, and stages six
+release images plus checksums. The `github-pages` environment allowed only
+`main` to deploy, so a tag rule `v*` was added on 09-10-2026. Without it a tag
+release builds and is then refused at deploy.
 
 | Step | Action                                       |
 |:-----|:---------------------------------------------|

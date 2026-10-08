@@ -1,0 +1,148 @@
+# Builds every board on each push and pull request. On a `v*` tag it also
+# publishes a GitHub release and the web installer to GitHub Pages.
+#
+# Release images come only from here, never from a local build: a local build
+# compiles in include/secrets.h. A tag must equal `v` + FIRMWARE_VERSION, carry
+# no pre-release suffix (no -dev), and point at a commit on main.
+# See docs/WEB_INSTALLER_PLAN.md (Phase 4).
+
+name: Firmware
+
+on:
+  push:
+    branches: [dev, main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # the tag check needs origin/main
+
+      - name: Refuse local secrets
+        run: |
+          if [ -e include/secrets.h ]; then
+            echo "::error::include/secrets.h is in the tree - release images must build without it"
+            exit 1
+          fi
+
+      - name: Read and check the version
+        id: ver
+        run: |
+          field() { sed -n "s/.*$1 = \"\([^\"]*\)\".*/\1/p" include/config.h; }
+          VER=$(field FIRMWARE_VERSION)
+          PROJECT=$(field PROJECT_NAME)
+          [ -n "$VER" ] && [ -n "$PROJECT" ] || { echo "::error::FIRMWARE_VERSION or PROJECT_NAME not found"; exit 1; }
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "project=$PROJECT" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            [ "$GITHUB_REF_NAME" = "v$VER" ] || { echo "::error::Tag $GITHUB_REF_NAME does not match FIRMWARE_VERSION $VER"; exit 1; }
+            case "$VER" in *-*) echo "::error::$VER is a pre-release version and cannot be published"; exit 1 ;; esac
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::$GITHUB_REF_NAME is not on main"; exit 1; }
+          fi
+          echo "$PROJECT $VER"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+
+      - name: Install PlatformIO
+        run: pip install platformio==6.1.19
+
+      - name: Build every board
+        run: pio run $(sed -n 's/^\[env:\(.*\)\]$/-e \1/p' platformio.ini)
+
+      - name: Assemble installer site
+        run: python3 tools/make_manifests.py --out _site
+
+      # Not deployed: a dev build is never published. Download it and serve
+      # it on localhost to try the installer from a branch.
+      - name: Keep site preview
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v7
+        with:
+          name: site-preview
+          path: _site
+          retention-days: 7
+
+      - name: Stage release files
+        if: github.ref_type == 'tag'
+        env:
+          PROJECT: ${{ steps.ver.outputs.project }}
+          VER: ${{ steps.ver.outputs.version }}
+        run: |
+          mkdir release
+          for b in .pio/build/*/; do
+            e=$(basename "$b")
+            [ -f "$b/firmware-merged.bin" ] || continue
+            cp "$b/firmware.bin" "release/$PROJECT-v$VER-$e-firmware.bin"
+            cp "$b/firmware-merged.bin" "release/$PROJECT-v$VER-$e-merged.bin"
+          done
+          (cd release && sha256sum *.bin > SHA256SUMS.txt)
+          ls -l release
+
+      - name: Keep release files
+        if: github.ref_type == 'tag'
+        uses: actions/upload-artifact@v7
+        with:
+          name: release
+          path: release
+
+      - name: Keep Pages site
+        if: github.ref_type == 'tag'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+
+  publish:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # release
+      pages: write     # deploy
+      id-token: write  # deploy
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release
+          path: release
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: release/*
+          body: |
+            **Install from your browser:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+            Chrome, Edge or Opera on a desktop. A board already running this firmware is offered **Update**, which keeps its settings and WiFi.
+
+            | File | Use |
+            |:--|:--|
+            | `*-firmware.bin` | Web UI update (`/update`) on a running clock |
+            | `*-merged.bin` | Clean install at `0x0` with esptool – **erases settings and WiFi** |
+            | `SHA256SUMS.txt` | Checksums |
+
+            Changes: see [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/CHANGELOG.md).
+
+      - id: deploy
+        uses: actions/deploy-pages@v5

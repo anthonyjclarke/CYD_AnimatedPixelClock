@@ -62,6 +62,14 @@ AnimatedPixelClock, by Nikolay Miroshnichenko. Neither is in upstream.
   and `custom_installer_hint` in `platformio.ini`. `tools/merge_bin.py` also
   writes `flash_parts.json`, so the manifest offsets are PlatformIO's own.
 
+- **CI and releases** (`.github/workflows/firmware.yml`). Every push and pull
+  request builds all boards; branch builds keep the installer site as a 7-day
+  `site-preview` artifact. A `v*` tag publishes a GitHub release – per board
+  `*-firmware.bin` for the web UI update and `*-merged.bin` for a clean
+  install, with `SHA256SUMS.txt` – and deploys the installer to GitHub Pages.
+  The tag must equal `v` + `FIRMWARE_VERSION`, have no `-dev` suffix and be on
+  `main`, and `include/secrets.h` must be absent.
+
 ### Changed
 
 - **Improv-Serial listens on every boot**, in the setup portal and in `loop()`,
