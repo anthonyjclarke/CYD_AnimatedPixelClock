@@ -25,6 +25,12 @@ and deploys the web installer. Nothing is published by hand.
 
 ---
 
+## [Unreleased] — 1.5.0-dev
+
+Nothing yet. See the [Roadmap](README.md#roadmap) for what is queued.
+
+---
+
 ## [1.4.0] 09-10-2026
 
 A browser installer and the firmware changes it needs. Each `v*` tag now
