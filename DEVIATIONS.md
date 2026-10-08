@@ -103,7 +103,9 @@ says what reviving each part would take.
 - **The "This is fine" screensaver effect**, the `.pca` custom-animation player
   and `gif2pca.py`. The other four effects are ported; see below.
 - **HUB75 hardware material:** the bring-up sketch, wiring diagram generator,
-  prototype photographs, ESP32-S3 release binaries and the web flasher.
+  prototype photographs and ESP32-S3 release binaries. Upstream's web flasher
+  and `release.py` are archived too, replaced by the port's own (see *Build,
+  logging and versioning*).
 - **Upstream's `FUNDING.yml`.** Its sponsorship links belong to the upstream
   author.
 - **Web UI:** the Audio visualizer, Display layout and Visible metrics pages,
@@ -237,6 +239,20 @@ empty, not as a matter of taste.
   and in `loop()`, so the web installer can recognise the firmware and update
   it without erasing settings. A failed "Change WiFi" restores the previous
   network.
+- **Web installer and releases.**
+  - Upstream builds release images on the author's machine with `release.py`
+    and commits them under `docs/` for its Pages flasher. The port builds them
+    in CI (`.github/workflows/firmware.yml`) on a `v*` tag. It never commits a
+    binary, and it refuses a `-dev` version, a tag that differs from
+    `FIRMWARE_VERSION`, and a tag off `main`.
+  - Upstream's flasher writes one merged image at `0x0`, which also fills the
+    NVS partition with `0xFF`. Every install, update included, therefore
+    erases settings and WiFi. The port's manifests list the bootloader,
+    partitions, `boot_app0` and app as separate parts, so an update keeps
+    them.
+  - The board picker is built from `custom_installer_*` options in
+    `platformio.ini` by `tools/make_manifests.py`. Upstream's lives in
+    `flasher.js`.
 - **Improv library vendored.** `jnthas/Improv WiFi Library` 0.0.2 lives in
   `lib/ImprovWiFi` with a parser fix (every second request was dropped).
   Upstream takes it from the registry.

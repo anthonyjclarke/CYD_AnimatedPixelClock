@@ -21,6 +21,30 @@ which needs no wiring, no external panels and no separate 5 V supply.
 
 ---
 
+## Install
+
+**[anthonyjclarke.github.io/CYD_AnimatedPixelClock][installer]** installs the
+latest release from the browser – no PlatformIO, no drivers to build. It needs
+desktop Chrome, Edge or Opera.
+
+1. Pick your board – 2.4″, 2.8″ or 4.0″.
+2. Plug it in with a USB data cable, click **Connect & install** and choose its
+   port.
+3. On a new board, say yes to erasing it. When flashing finishes, choose
+   **Configure WiFi** and pick your network.
+4. **Visit device** opens the clock's web page.
+
+A board already running this firmware is recognised and offered **Update**,
+which keeps its settings and WiFi. Each [release][releases] also carries the
+images for flashing by hand. Use `*-firmware.bin` for the web UI's update
+page. `*-merged.bin` is a clean install at `0x0` with esptool, and it **erases
+settings and WiFi**.
+
+[installer]: https://anthonyjclarke.github.io/CYD_AnimatedPixelClock/
+[releases]: https://github.com/anthonyjclarke/CYD_AnimatedPixelClock/releases
+
+---
+
 ## Origins & Credits
 
 | Layer                          | Author         | Source                                  |
@@ -194,6 +218,12 @@ version carries a `-dev` suffix so a development build is never mistaken for the
 release it will become. See the top of [`CHANGELOG.md`](CHANGELOG.md) for the
 release procedure.
 
+Pushing a `vX.Y.Z` tag runs [`firmware.yml`](.github/workflows/firmware.yml).
+It builds every board, publishes the GitHub release and deploys the web
+installer. The tag must equal `v` + `FIRMWARE_VERSION`, carry no `-dev` and
+sit on `main`, or the run stops before publishing anything. Every other push
+and pull request is built too, but nothing is published.
+
 ---
 
 ## Building
@@ -213,6 +243,25 @@ with Improv-Serial, which listens on every boot so a browser installer can
 also change WiFi or update a running clock. Credentials are never stored in source. If a board's AP mode
 is faulty, copy `include/secrets.h.example` to `include/secrets.h` (gitignored)
 and fill in your network; it is picked up automatically.
+
+That is also why release images are built only by CI. A local build compiles
+in your `secrets.h`. Never publish one.
+
+To try the web installer from a local build, assemble the site and serve it on
+localhost. Web Serial needs a secure origin, and localhost counts.
+
+```bash
+python3 tools/make_manifests.py
+```
+
+```bash
+python3 -m http.server 8765 --directory _site
+```
+
+Then open `http://localhost:8765` in Chrome. The site has one manifest per board
+with a `custom_installer_label` in `platformio.ini`. Each manifest lists the
+bootloader, partitions, `boot_app0` and app as separate parts, never the merged
+image, so an update leaves the NVS partition alone.
 
 ---
 
@@ -347,8 +396,6 @@ a desk. Anything genuinely broken is listed as a bug and comes first.
 - **Tetris small-clock mode by default.** It gives a 25-row well instead of 11,
   a better showcase on this canvas, but it changes behaviour rather than sizing,
   so it stays opt-in.
-- **Release binaries.** Tags publish source only. Upstream had a release
-  pipeline and a web flasher; both are archived.
 
 ---
 

@@ -26,7 +26,8 @@ an integrated ILI9341 or ST7796S panel and needs none of it.
 
 The upstream release pipeline and its published ESP32-S3 binaries — `release/`
 (v2.0.0 – v2.3.0 firmware images and checksums), `release.py` and `result.json`.
-These images are built for the ESP32-S3 and **cannot** run on a CYD.
+These images are built for the ESP32-S3 and **cannot** run on a CYD. The port's
+releases come from `.github/workflows/firmware.yml` instead.
 
 ## `upstream-docs/`
 
@@ -36,6 +37,8 @@ These images are built for the ESP32-S3 and **cannot** run on a CYD.
 | `docs/`              | Pages site, web flasher, HUB75 wiring guide   |
 | `.github/`           | Upstream author's `FUNDING.yml`               |
 | `*.code-workspace`   | Upstream VS Code workspace file               |
+
+The web flasher is superseded by the port's own installer in `installer/`.
 
 The `FUNDING.yml` is archived rather than kept because sponsorship links belong to
 the upstream author and should not be served from a fork. Credit is given instead

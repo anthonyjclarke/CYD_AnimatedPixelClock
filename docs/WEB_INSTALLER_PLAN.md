@@ -299,6 +299,20 @@ Writing the 2.8″ parts restored it, with settings and WiFi intact.
 
 ### Phase 6 – documentation
 
+**Status 09-10-2026: done.**
+- `README.md` has an **Install** section after the intro, a note on CI
+  releases under Versioning, and the local-site recipe and "never publish a
+  local build" under Building. The "Release binaries" roadmap item is gone.
+- `DEVIATIONS.md` says why the web flasher moved from *Removed* to *Build*.
+- `archive/README.md` points to the replacements.
+- The CHANGELOG release procedure ends with what the tag publishes.
+- `CLAUDE.md` (99 lines) gains a *Web installer and releases* section: CI
+  only, never the merged image in a manifest, and `PROJECT_NAME` and the
+  partition table frozen.
+
+The README's installer link returns 404 until the first tagged release
+deploys Pages.
+
 - `README.md`: an **Install** section at the top with the Pages link. Keep the
   PlatformIO route as the developer path.
 - `DEVIATIONS.md`: the archived upstream flasher is revived, but built by CI.

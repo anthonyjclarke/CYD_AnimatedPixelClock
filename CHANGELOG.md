@@ -19,7 +19,9 @@ Releases live on `main` and are tagged `vX.Y.Z`. Work happens on `dev`, whose
 `FIRMWARE_VERSION` carries a `-dev` suffix so a development build is never
 mistaken for the release it will become. To cut a release: settle the
 `## [Unreleased]` section under its version and date, drop the `-dev` suffix,
-fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
+fast-forward `main`, tag, then open the next `-dev` cycle on `dev`. Pushing the
+tag runs `.github/workflows/firmware.yml`, which publishes the GitHub release
+and deploys the web installer. Nothing is published by hand.
 
 ---
 
