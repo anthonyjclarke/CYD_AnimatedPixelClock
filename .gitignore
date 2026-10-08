@@ -4,6 +4,8 @@
 .piolibdeps/
 
 # ---- Build artefacts ----
+# Web installer site, assembled by tools/make_manifests.py
+_site/
 *.bin
 *.elf
 *.map

@@ -1,6 +1,10 @@
-# PlatformIO post-build script: writes $BUILD_DIR/firmware-merged.bin, one image
-# flashed at 0x0 that holds the bootloader, partition table, boot_app0 (otadata)
-# and the app - a single-file CLEAN install for `esptool.py write_flash 0x0`.
+# PlatformIO post-build script. Writes two things to $BUILD_DIR:
+#
+#  - flash_parts.json: each image PlatformIO flashes and its offset
+#    (bootloader, partitions, boot_app0, app). tools/make_manifests.py builds
+#    the web installer's manifests from it, so offsets are never hardcoded.
+#  - firmware-merged.bin: the same parts as one image flashed at 0x0 - a
+#    single-file CLEAN install for `esptool.py write_flash 0x0`.
 #
 # It ERASES SETTINGS. merge_bin fills the gap between the partition table and
 # otadata with 0xFF, and that gap is the NVS partition (0x9000-0xdfff): WiFi,
@@ -23,6 +27,7 @@
 
 Import("env")  # noqa: F821 - provided by PlatformIO
 
+import json
 from os.path import join
 
 
@@ -35,6 +40,11 @@ def merge_bin(source, target, env):
     for offset, image in env.get("FLASH_EXTRA_IMAGES", []):
         images += [offset, env.subst(image)]
     images += [env.subst("$ESP32_APP_OFFSET"), str(target[0])]
+
+    parts = [{"offset": int(images[i], 16), "path": images[i + 1]}
+             for i in range(0, len(images), 2)]
+    with open(join(build_dir, "flash_parts.json"), "w") as f:
+        json.dump(parts, f, indent=2)
 
     cmd = [
         '"$PYTHONEXE"', '"$OBJCOPY"',

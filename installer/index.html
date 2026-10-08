@@ -1,0 +1,153 @@
+<!doctype html>
+<!--
+  Web installer page. Generic: everything project-specific comes from
+  index.json, written by tools/make_manifests.py next to this file.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Web Installer</title>
+<script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
+<style>
+  :root {
+    --bg: #f6f5f1; --panel: #ffffff; --text: #1d1d1f; --muted: #5f6066;
+    --line: #dcdad3; --accent: #c99a00; --accent-text: #1d1d1f;
+    --sel: #fff6d6; --warn: #8a5a00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121214; --panel: #1c1c20; --text: #ececf0; --muted: #a0a0aa;
+      --line: #2e2e35; --accent: #ffd23f; --accent-text: #121214;
+      --sel: #2a2614; --warn: #ffcf70;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 680px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { font-size: 1.7rem; line-height: 1.2; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 32px 0 10px; }
+  .version { color: var(--muted); margin: 0 0 8px; }
+  .lead { margin: 0; }
+  .boards { display: grid; gap: 10px; }
+  .board {
+    display: grid; grid-template-columns: auto 1fr; gap: 2px 12px;
+    padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--panel); cursor: pointer;
+  }
+  .board:has(input:checked) { border-color: var(--accent); background: var(--sel); }
+  .board input { grid-row: span 2; margin-top: 5px; accent-color: var(--accent); }
+  .board strong { font-weight: 600; }
+  .board span { color: var(--muted); font-size: 0.92rem; }
+  #install { min-height: 48px; }
+  .btn {
+    font: inherit; font-weight: 600; padding: 12px 22px; border: 0;
+    border-radius: 10px; background: var(--accent); color: var(--accent-text);
+    cursor: pointer;
+  }
+  .note {
+    padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--warn); margin: 0;
+  }
+  ul { padding-left: 20px; margin: 0; }
+  li + li { margin-top: 6px; }
+  a { color: inherit; }
+  footer { margin-top: 40px; color: var(--muted); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title">Web Installer</h1>
+  <p class="version" id="version"></p>
+  <p class="lead">Install the firmware on your board over USB, straight from
+    this page. You don't need PlatformIO or any other tools.</p>
+
+  <h2>1. Pick your board</h2>
+  <div class="boards" id="boards" role="radiogroup" aria-label="Board"></div>
+
+  <h2>2. Connect it with a USB data cable and install</h2>
+  <div id="install"></div>
+
+  <h2>What to expect</h2>
+  <ul>
+    <li><strong>First install:</strong> say yes when asked to erase the device.</li>
+    <li><strong>Already running this firmware?</strong> The installer recognises it
+      and offers <em>Update</em>. Your settings and WiFi are kept.</li>
+    <li id="wifi-step"><strong>WiFi:</strong> after installing, choose
+      <em>Configure WiFi</em> in the installer.</li>
+    <li><strong>Wrong board?</strong> A blank or garbled screen won't harm anything.
+      Install again with the right board selected.</li>
+  </ul>
+
+  <h2>Requirements</h2>
+  <ul>
+    <li>Desktop Chrome, Edge or Opera. Firefox and Safari can't talk to USB serial ports.</li>
+    <li>On Windows, if no port appears, install the
+      <a href="https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers">CP210x</a>
+      or <a href="https://www.wch-ic.com/downloads/CH341SER_EXE.html">CH340</a> driver,
+      depending on your board's USB chip.</li>
+    <li>Some USB cables only carry power. If no port appears, try another cable.</li>
+  </ul>
+
+  <footer id="credits"></footer>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, props, ...kids) => {
+    const n = Object.assign(document.createElement(tag), props);
+    n.append(...kids);
+    return n;
+  };
+  const link = (href, text) => el("a", { href }, text);
+
+  // ESP Web Tools reads the manifest once, so swap in a fresh button per board.
+  function showButton(manifest) {
+    const btn = el("esp-web-install-button", {});
+    btn.setAttribute("manifest", manifest);
+    btn.append(
+      el("button", { className: "btn", slot: "activate" }, "Connect & install"),
+      el("p", { className: "note", slot: "unsupported" },
+        "This browser can't reach USB devices. Open this page in desktop Chrome, Edge or Opera."),
+      el("p", { className: "note", slot: "not-allowed" },
+        "USB access needs a secure (https) page."));
+    $("install").replaceChildren(btn);
+  }
+
+  fetch("index.json", { cache: "no-store" })
+    .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then((info) => {
+      document.title = info.project + " Installer";
+      $("title").textContent = info.project;
+      $("version").textContent = "Firmware " + info.version;
+
+      info.boards.forEach((b, i) => {
+        const input = el("input", { type: "radio", name: "board", value: b.manifest, checked: i === 0 });
+        input.addEventListener("change", () => showButton(b.manifest));
+        $("boards").append(el("label", { className: "board" },
+          input, el("strong", {}, b.label), el("span", {}, b.hint)));
+      });
+      showButton(info.boards[0].manifest);
+
+      if (info.setupAp) {
+        $("wifi-step").append(" Or join the ", el("code", {}, info.setupAp),
+          " WiFi network from your phone and pick your network there.");
+      }
+      const u = info.basedOn;
+      $("credits").append(link(info.repository, info.project), " · ");
+      if (u && u.project) {
+        $("credits").append("Based on ", link(u.repository, u.project), " by " + u.author, " · ");
+      }
+      $("credits").append("Installer by ",
+        link("https://github.com/esphome/esp-web-tools", "ESP Web Tools"));
+    })
+    .catch((e) => {
+      $("install").replaceChildren(el("p", { className: "note" },
+        "Couldn't load the firmware list (" + e.message + "). Reload to try again."));
+    });
+</script>
+</body>
+</html>

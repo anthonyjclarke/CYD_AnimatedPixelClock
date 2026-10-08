@@ -54,6 +54,14 @@ AnimatedPixelClock, by Nikolay Miroshnichenko. Neither is in upstream.
   partition. `firmware.bin` is unchanged and is still the file for the web UI's
   update.
 
+- **Web installer site.** `tools/make_manifests.py` turns finished builds into
+  `_site/`: one ESP Web Tools manifest per board, each listing bootloader,
+  partitions, `boot_app0` and app as separate parts so an update keeps NVS.
+  It also writes `index.json` and copies `installer/index.html`, a board
+  picker driven by that file. Board names come from `custom_installer_label`
+  and `custom_installer_hint` in `platformio.ini`. `tools/merge_bin.py` also
+  writes `flash_parts.json`, so the manifest offsets are PlatformIO's own.
+
 ### Changed
 
 - **Improv-Serial listens on every boot**, in the setup portal and in `loop()`,

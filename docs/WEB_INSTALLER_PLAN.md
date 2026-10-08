@@ -187,6 +187,27 @@ a one-line fix; 0.0.4 still has the bug. Upstreaming the fix is worth doing.
 
 ### Phase 3 – installer page (`installer/`)
 
+**Status 09-10-2026: built and tested on hardware.**
+- The page (`installer/index.html`) and `tools/make_manifests.py` are in
+  place, with ESP Web Tools pinned at 10.4.0. The manifests list four parts,
+  using the offsets in each build's `flash_parts.json`.
+- Served from localhost: all parts load for every board, switching boards
+  swaps the manifest, there are no console errors, and the page fits 375 px in
+  light and dark mode.
+- A 4.0″ (`A4:F0:0F:68:95:5C`) went through the installer in a real browser:
+  it was offered **Update**, installed, and came back on WiFi from `app0` with
+  no crash recorded. The firmware size matches the 4.0″ build exactly.
+- The `app1` case passed on the 2.8″ (`B0:CB:D8:DA:AE:8C`). It was web-OTA'd
+  to `app1` (boot health confirmed it `valid` after 60 s), then given an
+  **Update** through the installer in Chrome. It came back on `app0` and
+  rejoined WiFi with no setup, so the NVS partition, which also holds the
+  settings, was kept. Risks 1, 2 and 11 are closed on hardware.
+- After an install, the reset reason is 3 (software). That comes from
+  ESP Web Tools releasing the chip (esptool-js `after()`), not the firmware:
+  an RTS reset gives one `POWERON_RESET` boot and no restart.
+- Chrome keeps the port while the installer dialog is open. Close it before
+  using a serial monitor.
+
 - `installer/index.html`: a board picker with three cards (2.4″ / 2.8″ / 4.0″),
   each with a photo and ID hints. It loads `esp-web-tools@10.x.y` at a pinned
   exact version. Adapt upstream's `flasher.js`, which rebuilds the button on each
