@@ -47,6 +47,12 @@ AnimatedPixelClock, by Nikolay Miroshnichenko. Neither is in upstream.
   `loop()` pass over the last 10 s (`loopMaxMs`) and its slowest named part
   (`loopSlowPart`, `loopSlowPartMs`); any part over 200 ms is logged as a
   warning. The Diagnostics box shows it.
+- **Merged firmware image.** Every build now also writes `firmware-merged.bin`
+  through `tools/merge_bin.py`: bootloader, partitions, `boot_app0` and app in
+  one file, flashed at `0x0`. It is a clean install and **erases saved
+  settings and WiFi**, because the gap it fills with `0xFF` is the NVS
+  partition. `firmware.bin` is unchanged and is still the file for the web UI's
+  update.
 
 ---
 

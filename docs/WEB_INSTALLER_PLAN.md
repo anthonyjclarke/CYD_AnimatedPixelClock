@@ -20,7 +20,7 @@ pulls out the parts that carry over to every other CYD repo.
   asks about erasing.
 
 ESP Web Tools does the flashing, the progress UI, and the "Logs & Console" view.
-Our part is the merged image, the manifest, and the hosting. We'll copy the
+Our part is the images, the manifest, and the hosting. We'll copy the
 mechanism, but our version will improve on it in four ways: CI builds, a version
 taken from `config.h`, Improv WiFi setup, and updates that don't erase settings.
 
@@ -53,7 +53,7 @@ I checked these ESP Web Tools 10 behaviours in `install-dialog.js`:
 - **Serial speed.** The 115200 baud setting matches the ESP Web Tools console.
 - **Upstream precedent.** Upstream shipped an ESP Web Tools flasher (archived at
   `archive/upstream-docs/docs/flasher.js` and `archive/upstream-release/release.py`).
-  Its board dropdown and its merged-image layout can be reused.
+  Its board dropdown can be reused. Its merged-image layout can't, because of risk 11.
 
 ### Gaps and risks (most serious first)
 
@@ -61,8 +61,8 @@ I checked these ESP Web Tools 10 behaviours in `install-dialog.js`:
    the boot-health rollback mean a device in the field may be running from
    `app1`. An installer that writes only `firmware.bin` at `0x10000` leaves
    `otadata` still pointing at `app1`, so the old version keeps booting and the
-   "update" appears to do nothing. **Fix:** the installer image must include
-   `boot_app0.bin` at `0xe000`. A merged image does this automatically.
+   "update" appears to do nothing. **Fix:** the installer must also write
+   `boot_app0.bin` at `0xe000`, as a separate manifest part (see risk 11).
 2. **Improv only runs on fresh devices.** It is armed only when no WiFi is saved.
    On a provisioned device, Connect times out after 1.5 s and
    `_isSameFirmware` is false. ESP Web Tools then offers **Install**, which
@@ -87,8 +87,8 @@ I checked these ESP Web Tools 10 behaviours in `install-dialog.js`:
    anything, and reflashing with the right image fixes it.
 6. **The merged image doesn't work over web OTA.** The merged `.bin` starts
    with bootloader padding, so `Update` rejects it with a magic-byte error.
-   Publish two clearly named files: `*-merged.bin` (installer and USB) and
-   `*-ota.bin` (web UI `/update`).
+   Name the files clearly: `*-firmware.bin` (installer part and web UI
+   `/update`) and `*-merged.bin` (clean install with esptool, erases NVS).
 7. **`-dev` builds must never reach Pages.** CI must fail the release if the tag
    ≠ `v` + `FIRMWARE_VERSION`, or if the version contains `-dev`.
 8. **The partition table is now frozen.** Updates don't erase, so a later
@@ -100,6 +100,13 @@ I checked these ESP Web Tools 10 behaviours in `install-dialog.js`:
 10. **Browser and driver support.** Only Chrome, Edge and Opera on desktop
     support Web Serial, so Firefox and Safari won't work. Windows may need the
     CP210x or CH340 driver. The page should link to both.
+11. **A merged image wipes NVS (found in Phase 1 testing).** `merge_bin` fills
+    the gap between the partition table (`0x8000`) and `otadata` (`0xe000`)
+    with `0xFF`, and that gap is the NVS partition. Flashing it erases WiFi,
+    settings, touch calibration and the crash report. This was confirmed on a
+    2.8″ board on 09-10-2026. **Fix:** the manifest lists four separate parts
+    and never the merged image. The merged image is kept only as a "clean
+    install" release download.
 
 ---
 
@@ -124,6 +131,18 @@ serves nothing until the first release deploy.
 
 ### Phase 1 – merged image from PlatformIO (`tools/merge_bin.py`)
 
+**Status 09-10-2026:** the script is in place and wired into all three envs
+through `[common].extra_scripts`. In every env the merged image byte-matches
+its parts at `0x1000` / `0x8000` / `0xe000` / `0x10000`, and both headers read
+DIO, 4 MB, 40 MHz. It was flashed to a 2.8″ (ESP32-D0WD-V3) and booted
+1.4.0-dev from `app0` with all peripherals up and Improv listening.
+
+That same test showed the merged image wipes NVS (risk 11). The merged image
+is therefore a clean-install download only. The installer uses separate
+parts (Phase 3), and none of them needs this script. Still untested: a board
+running from `app1`. To test it, do a web OTA, then install the parts and
+confirm it boots `app0` with its settings intact.
+
 Add an `extra_scripts = post:tools/merge_bin.py` to `[common]` and every env.
 The script hooks a post-action onto `$BUILD_DIR/${PROGNAME}.bin` and runs the
 bundled esptool (v4.9.0 is installed) with these arguments:
@@ -139,8 +158,9 @@ esptool.py --chip esp32 merge_bin -o $BUILD_DIR/firmware-merged.bin
 it uses the same variable for normal uploads. Take the flash mode, frequency and
 size from `env.BoardConfig()` rather than hardcoding them.
 
-Verify with `esptool.py write_flash 0x0 firmware-merged.bin` on a CYD that was
-previously web-OTA'd. It must boot the new version.
+Verify the installer path (the separate parts, not the merged image) on a CYD
+that was previously web-OTA'd. It must boot the new version and keep its
+settings.
 
 ### Phase 2 – Improv on every boot
 
@@ -170,9 +190,18 @@ previously web-OTA'd. It must boot the new version.
   "version": "1.4.0",
   "new_install_prompt_erase": true,
   "builds": [{ "chipFamily": "ESP32",
-    "parts": [{ "path": "esp32-cyd-28-merged.bin", "offset": 0 }] }]
+    "parts": [
+      { "path": "bootloader.bin",          "offset": 4096 },
+      { "path": "partitions.bin",          "offset": 32768 },
+      { "path": "boot_app0.bin",           "offset": 57344 },
+      { "path": "esp32-cyd-28-firmware.bin", "offset": 65536 }
+    ] }]
 }
 ```
+
+- **Never** use the merged image as a part, because it wipes NVS (risk 11).
+  Offsets are decimal in ESP Web Tools manifests. The bootloader, partitions and
+  `boot_app0` files are the same for every env, so publish one copy of each.
 
 - `name` **must** equal `PROJECT_NAME`, or updates show up as new installs.
 - Add the board label and the photo to each env as PlatformIO custom options
@@ -189,8 +218,8 @@ previously web-OTA'd. It must boot the new version.
 | 4    | Cache `~/.platformio`, `pip install platformio` |
 | 5    | `pio run` – all three envs                   |
 | 6    | `tools/make_manifests.py` → `_site/`         |
-| 7    | Copy page + merged bins into `_site/`        |
-| 8    | Release assets: merged + OTA bins, SHA256SUMS |
+| 7    | Copy page + parts (not merged) to `_site/`   |
+| 8    | Release: app + merged bins, SHA256SUMS       |
 | 9    | `upload-pages-artifact` → `deploy-pages`     |
 
 - Binaries go to Pages as a **deployment artifact**. They are never committed,
@@ -209,7 +238,7 @@ previously web-OTA'd. It must boot the new version.
 | Update on provisioned device           | "Update", settings kept      |
 | Device last updated via web OTA (app1) | New version boots            |
 | Wrong board picked                     | Garbled; reflash recovers    |
-| `*-ota.bin` via web UI `/update`       | Updates normally             |
+| `*-firmware.bin` via web UI `/update`  | Updates normally             |
 | Windows + macOS, Chrome + Edge         | Port found, flash completes  |
 
 ### Phase 6 – documentation
