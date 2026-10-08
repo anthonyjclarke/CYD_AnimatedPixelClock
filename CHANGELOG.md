@@ -25,7 +25,28 @@ fast-forward `main`, tag, then open the next `-dev` cycle on `dev`.
 
 ## [Unreleased] — 1.4.0-dev
 
-Nothing yet. See the [Roadmap](README.md#roadmap) for what is queued.
+### Added
+
+Both of these are ported from [NickoScope's fork][nicko-fork] of
+AnimatedPixelClock, by Nikolay Miroshnichenko. Neither is in upstream.
+
+[nicko-fork]: https://github.com/NickoScope/AnimatedPixelClock
+
+- **OTA rollback that actually rolls back** (fork `8ec3045`). arduino-esp32
+  2.0.17 marks every image valid before `setup()`, so the bootloader's rollback
+  only ever caught an image that died before then. An image installed over the
+  air is now confirmed only after running for a minute with WiFi up and 200
+  frames drawn; one that crashes or trips the watchdog first is rolled back on
+  the next reset. An image flashed over USB has no OTA state and is unaffected.
+- **Crash report** (same commit). At boot, the core dump the SDK saved to flash
+  is read — task, cause, program counter, backtrace and the crashed image's ELF
+  SHA — then logged, kept in NVS `health` and erased. `/api/info` gains `ota`
+  and `lastCrash`, and the web UI's Diagnostics box shows both. A factory reset
+  erases the stored report.
+- **Loop diagnostics** (fork `fc67bda`). `/api/info` reports the longest
+  `loop()` pass over the last 10 s (`loopMaxMs`) and its slowest named part
+  (`loopSlowPart`, `loopSlowPartMs`); any part over 200 ms is logged as a
+  warning. The Diagnostics box shows it.
 
 ---
 

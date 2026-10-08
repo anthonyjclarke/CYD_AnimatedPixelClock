@@ -85,7 +85,8 @@ geometry. Doom Fire's fire grid is half resolution (2×2 px cells) on purpose.
 
 ## Persistence
 
-NVS namespace `pixelclock`; touch calibration in `cydtouch`. Each is named only in
+NVS namespace `pixelclock`; touch calibration in `cydtouch`; crash report in
+`health`. Each is named only in
 its owning module, and a factory reset asks each module to clear its own. The
 384 KB `spiffs` partition is unused, kept so a filesystem can be added later.
 

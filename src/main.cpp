@@ -22,6 +22,8 @@
 #include <WiFiManager.h>
 
 #include "ambient/ambient.h"
+#include "display/display.h"
+#include "health/boot_health.h"
 #include <esp_task_wdt.h>
 #include <time.h>
 
@@ -297,6 +299,10 @@ void setup() {
   // block) failed to allocate there.
   display.allocateBuffer();
 
+  // OTA image state and the last crash report (src/health). After the canvas,
+  // so its brief heap use cannot fragment the block the 4.0" canvas needs.
+  healthBegin();
+
   // Load settings from flash
   loadSettings();
 
@@ -379,15 +385,62 @@ void setup() {
   DBG_INFO("Setup complete - free heap %u bytes", (unsigned)ESP.getFreeHeap());
 }
 
+// ========== Loop diagnostics ==========
+// Ported from NickoScope's fork of AnimatedPixelClock (fc67bda, and the
+// longest-pass tracker it extends). /api/info reports the longest loop() pass
+// and its slowest named part over the last LOOP_DIAG_WINDOW_MS, and any part
+// over LOOP_SLOW_PART_MS is logged. loopMark() closes the part that ends where
+// it is called.
+static uint32_t s_loopPrevUs = 0, s_loopMaxUs = 0, s_loopMaxLastUs = 0, s_loopWinMs = 0;
+static uint32_t s_markUs = 0, s_partMaxUs = 0, s_partMaxLastUs = 0;
+static const char *s_partMaxTag = "", *s_partMaxLastTag = "";
+
+uint32_t loopMaxMs() { return s_loopMaxLastUs / 1000UL; }
+const char *loopSlowPart() { return s_partMaxLastTag; }
+uint32_t loopSlowPartMs() { return s_partMaxLastUs / 1000UL; }
+
+static void loopMark(const char *tag) {
+  const uint32_t nowUs = micros();
+  const uint32_t us = s_markUs ? nowUs - s_markUs : 0;
+  s_markUs = nowUs;
+  if (us > s_partMaxUs) {
+    s_partMaxUs = us;
+    s_partMaxTag = tag;
+  }
+  if (us > LOOP_SLOW_PART_MS * 1000UL) {
+    DBG_WARN("Loop: %s took %u ms", tag, (unsigned)(us / 1000UL));
+  }
+}
+
+static void loopPassStart() {
+  loopMark("between passes");
+  const uint32_t nowUs = micros();
+  if (s_loopPrevUs && nowUs - s_loopPrevUs > s_loopMaxUs) s_loopMaxUs = nowUs - s_loopPrevUs;
+  s_loopPrevUs = nowUs;
+  if (millis() - s_loopWinMs >= LOOP_DIAG_WINDOW_MS) {
+    s_loopWinMs = millis();
+    s_loopMaxLastUs = s_loopMaxUs;
+    s_loopMaxUs = 0;
+    s_partMaxLastUs = s_partMaxUs;
+    s_partMaxLastTag = s_partMaxTag;
+    s_partMaxUs = 0;
+    s_partMaxTag = "";
+  }
+}
+
 // ========== loop() ==========
 void loop() {
+  loopPassStart();
+
   // Feed watchdog
   esp_task_wdt_reset();
 
   // Check and apply scheduled brightness (time-based dimming)
   checkScheduledBrightness();
+  loopMark("brightness");
 
   logStatusHeartbeat();
+  loopMark("status log");
 
   // CYD peripherals
   updateLdr();
@@ -413,9 +466,11 @@ void loop() {
       break;
   }
   ambientUpdate();
+  loopMark("sensors and touch");
 
   // Handle web server requests
   server.handleClient();
+  loopMark("web server");
 
   // Retry NTP sync periodically if not synced
   if (!ntpSynced && millis() - lastNtpSyncTime > 30000) {
@@ -457,6 +512,7 @@ void loop() {
     }
   }
   prevNtpSynced = ntpSynced;
+  loopMark("ntp");
 
   // Display update with adaptive refresh rate
   int targetHz = getOptimalRefreshRate();
@@ -478,6 +534,7 @@ void loop() {
     } else {
       renderActiveClock();
     }
+    loopMark("render");
 
     // Notification banner draws over whatever screen is active.
     if (notifyActive()) {
@@ -485,8 +542,16 @@ void loop() {
     }
 
     display.display();
+    loopMark("notify and push");
+    healthNoteFrame();
   }
+
+  // Confirms a new OTA image once it has run (frames are not asked for while
+  // the display is off).
+  healthTick(!displayAvailable || isDisplayForcedOff() || isDisplayScheduledOff());
+  loopMark("boot health");
 
   // WiFi reconnection handling
   handleWiFiReconnection();
+  loopMark("wifi reconnect");
 }

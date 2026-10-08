@@ -1354,6 +1354,9 @@ function updateDiagnostics(d) {
  var reset={1:'Power on',3:'Software restart',4:'Panic',5:'Interrupt watchdog',6:'Task watchdog',7:'Watchdog',9:'Brownout'};
  var lines=['Firmware: '+d.version+' ('+d.build+')','Chip: '+d.chip,'Flash: '+(d.flashBytes/1048576).toFixed(0)+' MiB','Firmware size: '+Math.round(d.firmwareBytes/1024)+' KiB','Free heap: '+Math.round(d.freeHeap/1024)+' KiB','Lowest heap: '+Math.round(d.minFreeHeap/1024)+' KiB','Largest block: '+Math.round(d.largestHeapBlock/1024)+' KiB','Uptime: '+fmtUptime(d.uptime),'Reset: '+(reset[d.resetReason]||d.resetReason),'Time synced: '+(d.ntpSynced?'yes':'no')];
  if(d.weatherValid)lines.push('Weather age: '+d.weatherAgeSeconds+'s');
+ if(typeof d.loopMaxMs==='number')lines.push('Slowest loop pass: '+d.loopMaxMs+' ms'+(d.loopSlowPart?' (most in '+d.loopSlowPart+', '+d.loopSlowPartMs+' ms)':''));
+ if(d.ota)lines.push('OTA: '+(d.ota.partition||'?')+', '+d.ota.state+(d.ota.rolledBackFrom?', rolled back from '+d.ota.rolledBackFrom:'')+(d.ota.confirmsAfterS?', confirms after '+d.ota.confirmsAfterS+' s':''));
+ if(d.lastCrash)lines.push('Last crash: '+d.lastCrash.task+', '+d.lastCrash.causeName+' at '+d.lastCrash.pc+' (image '+d.lastCrash.image+')');
  $('#diagnosticsText').textContent=lines.join('\n');
 }
 

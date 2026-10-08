@@ -15,6 +15,7 @@ same commit.
 | :------------------------- | :------------------------------ |
 | Upstream release ported    | v2.3.0, released 09-09-2026     |
 | Later upstream work ported | `f504bd4` Doom Fire, 13-09-2026 |
+| Fork work ported           | NickoScope `8ec3045`, `fc67bda` |
 | Upstream last compared     | `main` on 15-09-2026            |
 | Port version numbering     | Restarted at 1.0.0              |
 
@@ -78,6 +79,15 @@ same commit.
   - Every clock-style change is logged with what caused it: touch, web UI, API
     or Cycle All. Taps are logged at INFO.
   - `/api/status` adds `rowsPushed`, `canvasRows` and `clockStyleName`.
+- **OTA rollback and crash report**, ported from [NickoScope's
+  fork](https://github.com/NickoScope/AnimatedPixelClock) (`8ec3045`). An
+  over-the-air image is confirmed only after running `OTA_CONFIRM_AFTER_MS` with
+  WiFi up and frames drawn, so one that crashes first is rolled back. The last
+  crash is read from flash at boot into NVS `health`, `/api/info` and the
+  Diagnostics box. Upstream lets arduino-esp32 confirm every image at boot.
+- **Loop diagnostics**, ported from the same fork (`fc67bda`): the longest
+  `loop()` pass and its slowest part in `/api/info` and the Diagnostics box,
+  and a warning for any part over `LOOP_SLOW_PART_MS`.
 - **`include/secrets.h`** is included automatically when present, supplying
   `SECRET_WIFI_SSID` / `SECRET_WIFI_PASS` as the hardcoded-WiFi fallback.
 
@@ -208,8 +218,8 @@ empty, not as a matter of taste.
 - **Status readout.** The sidebar shows "Online · <clock style>" (or "display
   off"), and "Offline" when the device stops answering. Upstream's shows
   whether the PC companion is online.
-- **Diagnostics box.** Upstream's animation-player lines are removed, and the
-  ESP32's uptime is added.
+- **Diagnostics box.** Upstream's animation-player lines are removed; uptime,
+  loop timing, OTA state and the last crash are added.
 - **Wording.**
   - The Clock page offers a clock animation, not "the idle animation shown when
     your PC is asleep", under a "Clock style" heading rather than "Idle clock".

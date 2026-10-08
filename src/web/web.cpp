@@ -17,6 +17,7 @@
 #include "../timezones.h"
 #include "../weather/weather.h"
 #include "../ambient/ambient.h"
+#include "../health/boot_health.h"
 #include "web_pages.h"
 #include <WebServer.h>
 #include <Update.h>
@@ -40,6 +41,10 @@ WebServer server(80);
 // Runtime mode override flags (defined in main.cpp)
 extern bool httpForceClock;
 extern bool httpForceAmbient;
+// Loop diagnostics, defined in main.cpp.
+uint32_t loopMaxMs();
+const char *loopSlowPart();
+uint32_t loopSlowPartMs();
 
 // ========== Web Server Setup ==========
 static uint32_t runningFirmwareBytes = 0;
@@ -143,6 +148,10 @@ void handleDeviceInfo() {
  doc["largestHeapBlock"] = (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
  doc["freeInternalHeap"] = (uint32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
  doc["resetReason"] = (int)esp_reset_reason();
+ doc["loopMaxMs"] = loopMaxMs();          // longest loop() pass, last window
+ doc["loopSlowPart"] = loopSlowPart();    // and its slowest named part
+ doc["loopSlowPartMs"] = loopSlowPartMs();
+ healthInfoJson(doc.as<JsonObject>());    // "ota" state and "lastCrash"
  doc["ntpSynced"] = ntpSynced;
  doc["psramBytes"] = (uint32_t)ESP.getPsramSize();
  doc["psramFreeBytes"] = (uint32_t)ESP.getFreePsram();
@@ -1592,12 +1601,14 @@ void handleReset() {
  server.send(200, "text/html", html);
  delay(1000);
 
- // Erase all application settings and touch calibration. Each module clears
- // its own namespace - naming them here is how this handler came to clear
- // "pcmonitor" long after the port renamed the namespace to "pixelclock",
- // leaving a factory reset that wiped WiFi and changed nothing else.
+ // Erase all application settings, touch calibration and the crash report.
+ // Each module clears its own namespace - naming them here is how this
+ // handler came to clear "pcmonitor" long after the port renamed the namespace
+ // to "pixelclock", leaving a factory reset that wiped WiFi and changed
+ // nothing else.
  factoryResetSettings();
  touchClearCalibration();
+ healthClear();
 
  // Erase WiFi credentials
  wifiManager.resetSettings();

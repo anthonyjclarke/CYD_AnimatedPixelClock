@@ -292,6 +292,12 @@ boot, so a slow leak shows there while free heap still looks healthy, and
 `rows n/120` is how many canvas rows the last frame actually pushed — a running
 measure of whether the display's change detection is earning its keep.
 
+Any part of the main loop that takes longer than 200 ms is logged as a warning
+naming the part. After an over-the-air update the log shows the new image's
+OTA state until it is confirmed, and the boot after a crash reports what
+crashed. The web UI's Diagnostics box and `/api/info` show both, along with the
+slowest loop pass.
+
 ---
 
 ## Roadmap

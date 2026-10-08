@@ -249,6 +249,20 @@ constexpr uint32_t TIME_OVERRIDE_MAX_MS = 60000;
 // ======================== Watchdog Configuration =========================
 constexpr uint32_t WATCHDOG_TIMEOUT_SECONDS = 15;
 
+// ====================== Boot health (OTA rollback) =======================
+// An image installed over the air is confirmed only once it has run this long
+// (ms) with WiFi connected and this many frames drawn - frames are waived while
+// the display is off. One that crashes or trips the watchdog first is rolled
+// back by the bootloader on the reset that follows. See src/health/.
+constexpr uint32_t OTA_CONFIRM_AFTER_MS = 60000;
+constexpr uint32_t OTA_CONFIRM_FRAMES = 200;
+
+// ====================== Loop diagnostics ================================
+// /api/info reports the longest loop() pass and its slowest named part over
+// this window (ms). Any single part slower than LOOP_SLOW_PART_MS is logged.
+constexpr uint32_t LOOP_DIAG_WINDOW_MS = 10000;
+constexpr uint32_t LOOP_SLOW_PART_MS = 200;
+
 // ====================== QR Code Setup Configuration ======================
 // Show a scannable QR code during WiFi AP setup instead of text instructions.
 // Well suited to the CYD's larger, higher-density panel.
