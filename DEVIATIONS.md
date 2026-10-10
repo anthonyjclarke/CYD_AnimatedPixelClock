@@ -238,7 +238,9 @@ empty, not as a matter of taste.
   only on a device with no saved WiFi. The port listens in the setup portal
   and in `loop()`, so the web installer can recognise the firmware and update
   it without erasing settings. A failed "Change WiFi" restores the previous
-  network.
+  network. The Improv device name, `PixelClock-XXXX`, ends in the MAC's last
+  two bytes; upstream's `getEfuseMac() & 0xFFFF` gave the vendor prefix, the
+  same on every board.
 - **Web installer and releases.**
   - Upstream builds release images on the author's machine with `release.py`
     and commits them under `docs/` for its Pages flasher. The port builds them
@@ -254,8 +256,10 @@ empty, not as a matter of taste.
     `platformio.ini` by `tools/make_manifests.py`. Upstream's lives in
     `flasher.js`.
 - **Improv library vendored.** `jnthas/Improv WiFi Library` 0.0.2 lives in
-  `lib/ImprovWiFi` with a parser fix (every second request was dropped).
-  Upstream takes it from the registry.
+  `lib/ImprovWiFi` with a parser fix (every second request was dropped) and
+  a newline before each packet, without which ESP Web Tools often misses the
+  reply and offers Install instead of Update. Upstream takes it from the
+  registry.
 
 - **Logging.** All `Serial.print` calls are leveled `DBG_*` macros from
   `include/debug.h`, with the level settable at runtime through `/api/debug`.

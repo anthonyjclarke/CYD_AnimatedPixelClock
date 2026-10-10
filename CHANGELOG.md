@@ -31,6 +31,29 @@ Nothing yet. See the [Roadmap](README.md#roadmap) for what is queued.
 
 ---
 
+## [1.4.1] 11-10-2026
+
+A patch for the web installer's Connect step. No settings, partition or API
+changes; Update from 1.4.0 keeps WiFi and settings. Confirmed on a 4.0″:
+Connect showed "Connected to …" and Update on every one of five tries.
+
+### Fixed
+
+- **Connect sometimes offered Install instead of Update.** ESP Web Tools 10.4.0
+  (improv-wifi-serial-sdk 2.8.0) only parses an Improv packet that starts a
+  line. When Chrome opens the port the stream often begins with noise — NULs
+  on CH340 boards, or the tail of a debug line — and the SDK discards
+  everything up to the next newline, the clock's reply included. The installer
+  then saw no Improv device and offered a fresh install with an erase prompt.
+  The vendored library in `lib/ImprovWiFi` now writes a newline before each
+  packet. Fix from cyd-web-installer 1.0.1.
+- **Improv device name was the same on every board.** `PixelClock-XXXX` took
+  the low 16 bits of `getEfuseMac()`, which hold the MAC's vendor prefix. It
+  now ends in the MAC's last two bytes, as printed on labels and router lists.
+  Fix from cyd-web-installer 1.0.3. The mDNS hostname is unchanged.
+
+---
+
 ## [1.4.0] 09-10-2026
 
 A browser installer and the firmware changes it needs. Each `v*` tag now
