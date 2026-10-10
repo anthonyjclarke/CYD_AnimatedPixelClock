@@ -30,10 +30,14 @@ static ImprovTypes::ChipFamily detectChipFamily() {
 #endif
 }
 
+// Suffix = the MAC's last two bytes, as printed on labels and router lists.
+// getEfuseMac() packs MAC byte 0 into the lowest bits, so those last two
+// bytes sit at bits 32-47; the low 16 bits would be the vendor prefix.
 static String buildDeviceName() {
-  uint32_t mac = (uint32_t)(ESP.getEfuseMac() & 0xFFFF);
+  uint64_t mac = ESP.getEfuseMac();
   char buf[32];
-  snprintf(buf, sizeof(buf), "PixelClock-%04X", mac);
+  snprintf(buf, sizeof(buf), "PixelClock-%02X%02X",
+           (uint8_t)(mac >> 32), (uint8_t)(mac >> 40));
   return String(buf);
 }
 

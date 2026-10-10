@@ -70,6 +70,8 @@ and Doom Fire derive their own row geometry; Doom Fire's grid is 2×2 px cells.
   `DEVIATIONS.md` in the same commit** — added, removed or reworked behaviour.
 - **Never put the Improv library back in `lib_deps`.** It is vendored in
   `lib/ImprovWiFi` with a parser fix; the registry copy drops every 2nd request.
+  Its leading `'\n'` before each packet is required too: ESP Web Tools ignores
+  a packet that does not start a line, and Connect then offers Install.
 - **Never restore `.github/FUNDING.yml`** — those links are the upstream author's.
 
 ## Web installer and releases
