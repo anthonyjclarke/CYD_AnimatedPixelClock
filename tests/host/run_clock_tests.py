@@ -351,7 +351,12 @@ using portMUX_TYPE=int;
 #define WL_CONNECTED 3
 #define HTTP_CODE_OK 200
 struct FakeWifi {int state=WL_CONNECTED;int status() {return state;}} WiFi;
-struct WiFiClientSecure {void setInsecure() {}};
+struct WiFiClient {};
+struct WiFiClientSecure:WiFiClient {void setInsecure() {}int lastError(char* buf,size_t n) {if(n) buf[0]=0;return 0;}};
+#define MALLOC_CAP_INTERNAL 1
+#define MALLOC_CAP_8BIT 2
+size_t heap_caps_get_free_size(int) {return 60000;}
+size_t heap_caps_get_largest_free_block(int) {return 30000;}
 std::string httpBody=R"({"current":{"temperature_2m":10,"weather_code":0,"is_day":1},"daily":{}})";
 std::string lastUrl;
 std::function<void()> duringGet;
@@ -359,7 +364,7 @@ int httpStatus=200;
 struct HTTPClient {
  std::istringstream stream;
  void setTimeout(int) {}void useHTTP10(bool) {}
- bool begin(WiFiClientSecure&,const char* url) {lastUrl=url;return true;}
+ bool begin(WiFiClient&,const char* url) {lastUrl=url;return true;}
  int GET() {if(duringGet) {auto f=duringGet;duringGet=nullptr;f();}return httpStatus;}
  std::istream& getStream() {stream.clear();stream.str(httpBody);return stream;}
  void end() {}
@@ -447,6 +452,7 @@ int main() {
  // Actual weather scheduler/fetch code under deterministic task/HTTP stand-ins.
  settings.clockStyle=14;weatherSettingsChanged();weatherLoop();assert(taskStarts==1 && fetchBusy);
  weatherLoop();assert(taskStarts==1);runPendingTask();assert(!fetchBusy && taskDeletes==1 && getWeather().valid);
+ assert(lastUrl.rfind("https://api.open-meteo.com/",0)==0);  // HTTPS unless a board sets WEATHER_PLAIN_HTTP
  assert(lastUrl.find("forecast_days=4")!=std::string::npos && lastUrl.find("forecast_hours=12")!=std::string::npos && lastUrl.find("timezone=auto")!=std::string::npos);
  weatherLoop();assert(taskStarts==1);tick+=10UL*60UL*1000UL;weatherLoop();assert(taskStarts==2);runPendingTask();
  // A settings change mid-request invalidates cached weather and rejects its response.

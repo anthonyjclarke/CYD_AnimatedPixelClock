@@ -24,6 +24,13 @@
 #define WEATHER_RETRY_INTERVAL_MS (60UL * 1000UL)
 #define WEATHER_IDLE_POLL_MS 5000UL
 
+// Set per board in platformio.ini. The 4.0" canvas leaves ~55 KB of internal
+// RAM, short of the ~56 KB peak of a TLS handshake, so the free endpoint is
+// fetched over plain HTTP there. A commercial API key always uses HTTPS.
+#ifndef WEATHER_PLAIN_HTTP
+#define WEATHER_PLAIN_HTTP 0
+#endif
+
 static WeatherData published = {};
 static portMUX_TYPE weatherMux = portMUX_INITIALIZER_UNLOCKED;
 struct WeatherRequest {float lat,lon;char key[33];uint32_t generation;};
@@ -71,14 +78,15 @@ WeatherIconKind weatherIconFromCode(int code) {
 static bool fetchWeather(const WeatherRequest& req) {
   char url[512];
   bool hasKey = req.key[0] != '\0';
+  bool plain = WEATHER_PLAIN_HTTP && !hasKey;
   // The commercial tier uses the same API on a customer- host with an apikey.
   int urlLength = snprintf(url, sizeof(url),
-      "https://%s/v1/forecast?latitude=%.4f&longitude=%.4f"
+      "%s://%s/v1/forecast?latitude=%.4f&longitude=%.4f"
       "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,is_day"
       "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset"
       "&hourly=temperature_2m,precipitation_probability&forecast_hours=%d"
       "&timezone=auto&forecast_days=%d%s%s",
-      hasKey?"customer-api.open-meteo.com":"api.open-meteo.com",req.lat,req.lon,
+      plain?"http":"https",hasKey?"customer-api.open-meteo.com":"api.open-meteo.com",req.lat,req.lon,
       WEATHER_FORECAST_HOURS,1+WEATHER_FORECAST_DAYS,hasKey?"&apikey=":"",hasKey?req.key:"");
 
   if (urlLength < 0 || urlLength >= (int)sizeof(url)) {
@@ -86,16 +94,24 @@ static bool fetchWeather(const WeatherRequest& req) {
     return false;
   }
 
-  WiFiClientSecure client;
-  client.setInsecure();  // public, non-sensitive data; saves a cert bundle
+  WiFiClient plainClient;
+  WiFiClientSecure secureClient;
+  secureClient.setInsecure();  // public, non-sensitive data; saves a cert bundle
+  WiFiClient& client = plain ? plainClient : secureClient;
   HTTPClient http;
   http.setTimeout(10000);
   http.useHTTP10(true);
   if (!http.begin(client, url)) return false;
 
+  // A TLS handshake peaks near 56 KB of internal RAM; log what it had.
+  const uint32_t heapFree = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  const uint32_t heapBlock = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   int code = http.GET();
   if (code != HTTP_CODE_OK) {
-    DBG_INFO("Weather fetch failed: HTTP %d", code);
+    char tlsErr[80];
+    int tlsCode = plain ? 0 : secureClient.lastError(tlsErr, sizeof(tlsErr));
+    DBG_INFO("Weather fetch failed: HTTP %d, TLS -0x%04X %s (heap %u free, %u block)",
+             code, -tlsCode, tlsCode ? tlsErr : "none", (unsigned)heapFree, (unsigned)heapBlock);
     http.end();
     return false;
   }

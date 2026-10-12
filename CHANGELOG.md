@@ -27,7 +27,13 @@ and deploys the web installer. Nothing is published by hand.
 
 ## [Unreleased] — 2.1.0-dev
 
-No changes yet.
+### Fixed
+
+- Weather never loaded on the 4.0″ (`Weather fetch failed: HTTP -1`). The
+  larger canvas leaves too little internal RAM for a TLS handshake, so the
+  4.0″ now fetches Open-Meteo's free endpoint over plain HTTP. The 2.4″/2.8″
+  and any commercial API key still use HTTPS. A failed fetch now logs the TLS
+  error and the heap it had.
 
 ---
 

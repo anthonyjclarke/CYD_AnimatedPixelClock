@@ -195,6 +195,11 @@ says what reviving each part would take.
   checks to reject an old response after location changes. Partial/invalid
   forecasts fall back to placeholders or daily rows. The request buffer is
   512 bytes to also accommodate the retained commercial API key.
+- **Weather over HTTP on the 4.0″.** Its 76.8 KB canvas leaves ~55 KB of
+  internal RAM, short of the ~56 KB a TLS handshake peaks at, so HTTPS fetches
+  failed with HTTP -1. `WEATHER_PLAIN_HTTP=1` in that env fetches the free
+  endpoint over plain HTTP; the location is then sent unencrypted. A commercial
+  API key always uses HTTPS. The 2.4″/2.8″ and upstream use HTTPS throughout.
 
 ### Defaults
 

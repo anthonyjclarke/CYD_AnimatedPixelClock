@@ -62,6 +62,8 @@ and Doom Fire derive their own row geometry; Doom Fire's grid is 2×2 px cells.
   required — upstream uses the 2.x API; unpinned resolves to 3.x and fails.
 - **Never let the canvas rotate.** Its `rotation` must stay 0 or the buffer stops
   being row-major and row hashing breaks. Landscape comes from `tft.setRotation`.
+- **Never remove `WEATHER_PLAIN_HTTP` from the 4.0″ env.** Its canvas leaves
+  ~55 KB internal RAM; a TLS handshake peaks near 56 KB, so HTTPS fails (`-1`).
 - **Never narrow Tetris' well row back to `uint32_t`.** 40 columns at 160 px, 60
   at 240 — `TetRow` is `uint64_t`, with `TET_FULLROW` and `tet_clear_mask`.
 - **Never drop the upstream credit.** Web UI and `/api/info` name this repo *and*
