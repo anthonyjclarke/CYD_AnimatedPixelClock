@@ -1,7 +1,7 @@
 # Regression checks
 
-Release 2.0.0: all three builds and both host suites passed; the user confirmed
-all hardware checks passed. Keep actual board logs/measurements with future
+Release 2.0.1: all three builds and both host suites passed; the user confirmed
+the Weather fix on hardware. Keep actual board logs/measurements with future
 release verification rather than accumulating phase plans.
 
 ## Automated
