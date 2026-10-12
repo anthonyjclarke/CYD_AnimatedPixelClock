@@ -18,7 +18,13 @@ for a breaking settings or API change.
 Releases live on `main` and are tagged `vX.Y.Z`. Work happens on `dev`, whose
 `FIRMWARE_VERSION` carries a `-dev` suffix so a development build is never
 mistaken for the release it will become. To cut a release: settle the
-`## [2.0.0] 12-10-2026
+`## [Unreleased] — 2.1.0-dev
+
+No changes yet.
+
+---
+
+## [2.0.0] 12-10-2026
 
 A clock and animation update based on the latest upstream work. Existing WiFi,
 settings and palettes survive Update; the board/partition layout is unchanged.
