@@ -20,7 +20,11 @@ Releases live on `main` and are tagged `vX.Y.Z`. Work happens on `dev`, whose
 mistaken for the release it will become. To cut a release: settle the
 `## [Unreleased] — 2.1.0-dev
 
-No changes yet.
+### Fixed
+
+- Weather clock forecast layouts showed the time twice — a small row at the
+  top and the large Current-layout row above the temperature. The large row is
+  now drawn only when the forecast layout is not.
 
 ---
 

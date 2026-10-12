@@ -481,9 +481,15 @@ static void drawForecastLayout(const WeatherData& wx,const IconScene& scene,bool
 void displayClockWithWeather() {
   struct tm timeinfo;
   bool haveTime = getTimeWithTimeout(&timeinfo);
+  WeatherData wx = getWeather();
+  bool weatherReady = settings.weatherEnabled && weatherConfigured() && wx.valid;
 
   // --- Time row (size 2, centered) ---
-  if (haveTime) {
+  // Forecast layouts draw their own smaller time row; drawing this one too
+  // left the time on screen twice.
+  if (weatherReady && settings.weatherLayout >= 1) {
+    // drawn by drawForecastLayout()
+  } else if (haveTime) {
     int displayHour, displayMin;
     bool isPM;
     formatTimeForDisplay(timeinfo.tm_hour, timeinfo.tm_min, displayHour,
@@ -506,7 +512,6 @@ void displayClockWithWeather() {
   }
 
   // --- Weather block ---
-  WeatherData wx = getWeather();
   display.setTextSize(1);
 
   if (!settings.weatherEnabled || !weatherConfigured()) {
