@@ -110,6 +110,8 @@ enum ColorSlot {
   COL_DOOM_FLAME,      // mid heat
   COL_DOOM_CORE,       // white-hot core
   COL_DIGITS_S17,      // Doom Fire digits (separate from the contiguous S0-S14 slots)
+  COL_DATE,            // Date, weekday and AM/PM in all clocks
+  COL_WEATHER_DETAIL,  // Weather min/max, humidity and sun times
   // ...append future slots here (before COL_COUNT)
   COL_COUNT
 };

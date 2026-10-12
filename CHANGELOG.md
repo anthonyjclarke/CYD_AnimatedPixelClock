@@ -18,16 +18,55 @@ for a breaking settings or API change.
 Releases live on `main` and are tagged `vX.Y.Z`. Work happens on `dev`, whose
 `FIRMWARE_VERSION` carries a `-dev` suffix so a development build is never
 mistaken for the release it will become. To cut a release: settle the
-`## [Unreleased]` section under its version and date, drop the `-dev` suffix,
-fast-forward `main`, tag, then open the next `-dev` cycle on `dev`. Pushing the
-tag runs `.github/workflows/firmware.yml`, which publishes the GitHub release
-and deploys the web installer. Nothing is published by hand.
+`## [2.0.0] 12-10-2026
 
----
+A clock and animation update based on the latest upstream work. Existing WiFi,
+settings and palettes survive Update; the board/partition layout is unchanged.
+**API change:** runtime controls now require POST. Update Home Assistant/scripts
+using GET as described in [API migration notes](docs/API_MIGRATION.md).
 
-## [Unreleased] — 1.5.0-dev
+### Added
 
-Nothing yet. See the [Roadmap](README.md#roadmap) for what is queued.
+- **Matrix Rain:** katakana glyphs, smooth falling heads and a small corner clock
+  with digit decoding, adapted to both CYD canvases. New options default off.
+- **Weather:** moon/stars at night, rotating sun rays, moving clouds, wind and
+  richer precipitation/lightning. Day/night follows the selected location.
+- **Forecast layouts:** three-day rows/columns, a twelve-hour temperature/rain
+  graph and a tomorrow view with animated icons below current conditions.
+  Current conditions remain the default; the commercial API key is retained.
+- **Clock presentation:** shared date/weekday/AM-PM colour, Weather details colour
+  and 12-hour time with an optional hidden AM/PM indicator.
+- **Palette compatibility:** tagged CYD exports and an explicit mapping for
+  upstream `25b1928` palettes. Existing CYD colour indices are unchanged.
+
+### Changed
+
+- Weather uses one task per fetch, releasing its stack afterwards. Settings
+  snapshots and generation checks discard responses for an old location;
+  partial/invalid forecasts use placeholders or fall back to daily rows.
+- Browser-origin checks protect mutations; headerless scripts remain supported.
+  All exported strings use ArduinoJson escaping, with no wildcard export CORS.
+- Installer assets are versioned to prevent cached firmware from a previous
+  release, with direct release-note links in the installer.
+
+### Fixed
+
+- Cycle All now uses each clock's configured digit colour.
+- Matrix settings and the forecast layout survive export/import and reboot.
+- Noon/midnight digit updates keep the hidden time state consistent in 24-hour
+  mode, so animation overrides clear promptly.
+- Weather requests reject URL truncation and corrupt forecast temperatures.
+- OTA rejects empty/malformed or foreign uploads, clears abort/failure state,
+  and restarts only after a successfully completed image.
+
+### Validation
+
+All three board builds and both canvas-size host suites pass, including
+ASan/UBSan checks for rendering, settings, forecasting, task scheduling, export
+escaping and request/OTA handling. The user confirmed all hardware checks passed.
+The maintained [regression checklist](tests/README.md) covers future releases.
+
+Adopted upstream commits and CYD adaptations are recorded in `DEVIATIONS.md`.
 
 ---
 

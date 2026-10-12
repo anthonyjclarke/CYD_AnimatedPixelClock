@@ -88,6 +88,8 @@ const uint16_t SPRITE_COLOR_DEFAULTS[] = {
     /* COL_DOOM_FLAME     */ 0xCB61,  // orange, classic Doom ramp middle
     /* COL_DOOM_CORE      */ 0xFFFF,  // white-hot
     /* COL_DIGITS_S17     */ 0xFFFF,  // white
+    /* COL_DATE           */ 0xFFFF,  // white
+    /* COL_WEATHER_DETAIL */ 0xFFFF,  // white
 };
 // Every ColorSlot must have a default here, else it silently defaults to black.
 static_assert(sizeof(SPRITE_COLOR_DEFAULTS) / sizeof(SPRITE_COLOR_DEFAULTS[0]) == COL_COUNT,
@@ -132,6 +134,7 @@ void loadSettings() {
     settings.daylightSaving = true;
     strcpy(settings.timezoneString, "CET-1CEST,M3.5.0/02:00,M10.5.0/03:00"); // Default: Central European
     settings.use24Hour = true;
+    settings.hideAmPm = false;
     settings.dateFormat = 0;
     settings.clockPosition = 0; // Center by default
     settings.clockOffset = 0;   // No offset by default
@@ -152,10 +155,17 @@ void loadSettings() {
     settings.offEndMinute = 0;
     settings.notifyEnabled = true;
     settings.notifyPosition = 0;
+    settings.matrixRainSpeed = 12;
+    settings.matrixRainDensity = 1;
+    settings.matrixShowDate = true;
+    settings.matrixTransparent = false;
+    settings.matrixSmoothScroll = false;
+    settings.matrixSmallClock = false;
     settings.weatherEnabled = false;
     settings.weatherLat = 0;
     settings.weatherLon = 0;
     settings.weatherUseFahrenheit = false;
+    settings.weatherLayout = 0;
     settings.weatherApiKey[0] = '\0';
     settings.weatherPlace[0] = '\0';
     // CYD hardware defaults
@@ -316,6 +326,7 @@ void loadSettings() {
     }
   }
 
+  settings.hideAmPm = preferences.getBool("hideAmPm", false);
   settings.use24Hour = preferences.getBool("use24Hour", true); // Default: 24h
   settings.dateFormat =
       preferences.getInt("dateFormat", 0); // Default: DD/MM/YYYY
@@ -358,6 +369,8 @@ void loadSettings() {
       preferences.getBool("weatherEn", false); // Default: Disabled
   settings.weatherLat = preferences.getFloat("weatherLat", 0);
   settings.weatherLon = preferences.getFloat("weatherLon", 0);
+  settings.weatherLayout = preferences.getUChar("weatherLayout", 0);
+  if (settings.weatherLayout > 4) settings.weatherLayout = 0;
   settings.weatherUseFahrenheit =
       preferences.getBool("weatherF", false); // Default: Celsius
   String loadedWeatherKey = preferences.getString("weatherKey", "");
@@ -473,6 +486,8 @@ void loadSettings() {
       preferences.getBool("dinoClouds", true); // Default: clouds on
   settings.dinoShowDate =
       preferences.getBool("dinoDate", true); // Default: hidden (centred clock)
+  settings.matrixSmoothScroll = preferences.getBool("mxSmooth", false);
+  settings.matrixSmallClock = preferences.getBool("mxSmallClk", false);
   settings.matrixRainSpeed =
       preferences.getUChar("mxSpeed", 12); // Default: 1.2
   settings.matrixRainDensity =
@@ -584,6 +599,7 @@ void saveSettings() {
   preferences.putString("tz", settings.timezoneString); // New timezone string
   preferences.putUChar("tzIdx", settings.timezoneIndex); // Timezone region index
   preferences.putBool("use24Hour", settings.use24Hour);
+  preferences.putBool("hideAmPm", settings.hideAmPm);
   preferences.putInt("dateFormat", settings.dateFormat);
   preferences.putInt("clockPos", settings.clockPosition);
   preferences.putInt("clockOffset", settings.clockOffset);
@@ -607,6 +623,7 @@ void saveSettings() {
   preferences.putFloat("weatherLat", settings.weatherLat);
   preferences.putFloat("weatherLon", settings.weatherLon);
   preferences.putBool("weatherF", settings.weatherUseFahrenheit);
+  preferences.putUChar("weatherLayout", settings.weatherLayout);
   preferences.putString("weatherKey", settings.weatherApiKey);
   preferences.putString("weatherPlace", settings.weatherPlace);
   preferences.putUChar("marioBnceH", settings.marioBounceHeight);
@@ -674,6 +691,8 @@ void saveSettings() {
   preferences.putUChar("mxDensity", settings.matrixRainDensity);
   preferences.putBool("mxDate", settings.matrixShowDate);
   preferences.putBool("mxTransp", settings.matrixTransparent);
+  preferences.putBool("mxSmooth", settings.matrixSmoothScroll);
+  preferences.putBool("mxSmallClk", settings.matrixSmallClock);
   preferences.putUChar("mcSpeed", settings.mcMissileSpeed);
   preferences.putUChar("mcFreq", settings.mcMissileFreq);
   preferences.putBool("mcDate", settings.mcShowDate);

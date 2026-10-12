@@ -658,12 +658,22 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
               <label class="check-row standalone" style="margin-top:16px">
                 <input type="checkbox" name="matrixShowDate" id="matrixShowDate" %CHK_MATRIXSHOWDATE%>
                 <span class="check-box" aria-hidden="true"></span>
-                <span class="check-text"><strong>Show date</strong><span class="ct-hint">Off centres the clock in the rain. Default off.</span></span>
+                <span class="check-text"><strong>Show date</strong><span class="ct-hint">Off centres the full-size clock in the rain. Default on.</span></span>
               </label>
               <label class="check-row standalone" style="margin-top:12px">
                 <input type="checkbox" name="matrixTransparent" id="matrixTransparent" %CHK_MATRIXTRANSPARENT%>
                 <span class="check-box" aria-hidden="true"></span>
                 <span class="check-text"><strong>Transparent digits</strong><span class="ct-hint">Rain falls behind the digits instead of solid plates. Default off.</span></span>
+              </label>
+              <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="matrixSmoothScroll" id="matrixSmoothScroll" %CHK_MATRIXSMOOTH%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Smooth fall</strong><span class="ct-hint">Leading glyphs fall a pixel at a time, leaving a fading trail. Default off.</span></span>
+              </label>
+              <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="matrixSmallClock" id="matrixSmallClock" %CHK_MATRIXSMALLCLOCK%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Small corner clock</strong><span class="ct-hint">Keep the time in the top-right corner and give the rain more room. Default off.</span></span>
               </label>
             </div>
 
@@ -674,6 +684,16 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                 <span class="check-box" aria-hidden="true"></span>
                 <span class="check-text"><strong>Enable weather updates</strong><span class="ct-hint">Fetches conditions from Open-Meteo every 10 minutes (needs internet). Also adds a weather screen to Cycle All.</span></span>
               </label>
+              <div class="field" style="margin:16px 0 0">
+                <label class="field-label" for="weatherLayout">Weather layout</label>
+                <div class="select-wrap"><select name="weatherLayout" id="weatherLayout">
+                  <option value="0" %SEL_WEATHERLAYOUT_0%>Current conditions</option>
+                  <option value="1" %SEL_WEATHERLAYOUT_1%>Three-day rows</option>
+                  <option value="2" %SEL_WEATHERLAYOUT_2%>Three-day columns</option>
+                  <option value="3" %SEL_WEATHERLAYOUT_3%>Next 12 hours</option>
+                  <option value="4" %SEL_WEATHERLAYOUT_4%>Tomorrow</option>
+                </select></div>
+              </div>
               <div class="field" style="margin:16px 0 0">
                 <label class="field-label" for="weatherCity">Find your location</label>
                 <div style="display:flex;gap:8px;align-items:center">
@@ -715,6 +735,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                   <select name="use24Hour" id="use24Hour">
                     <option value="1" %SEL_USE24HOUR%>24-hour &middot; 14:30</option>
                     <option value="0" %SEL_USE24HOUR_NOT%>12-hour &middot; 2:30 PM</option>
+                    <option value="2" %SEL_HIDEAMPM%>12-hour without AM/PM &middot; 2:30</option>
                   </select>
                 </div>
               </div>
@@ -1216,7 +1237,7 @@ if (el) el.addEventListener('input', function () { wp.value = ''; if (st) st.tex
 var ambChk = $('#ambientEnabled');
 if (ambChk) { var fa = function () { toggle($('#ambientFields'), ambChk.checked); }; ambChk.addEventListener('change', fa); fa(); }
 function ambCall(path, okMsg) {
-fetch(path).then(function (r) { return r.json(); })
+fetch(path, { method: 'POST' }).then(function (r) { if (!r.ok) throw new Error('Request failed'); return r.json(); })
 .then(function () { var s = $('#ambRunStatus'); if (s) s.textContent = okMsg; })
 .catch(function () { var s = $('#ambRunStatus'); if (s) s.textContent = 'Request failed - is the device reachable?'; });
 }
@@ -1252,7 +1273,7 @@ setTimeout(function () { window.location.href = '/'; }, 3000);
 $('#resetBtn').addEventListener('click', function () {
 if (!confirm('Have you exported a backup of your settings?\n\nUse "Export config" first if not.\n\nOK to continue with factory reset, Cancel to go back.')) return;
 if (!confirm('ARE YOU SURE?\n\nThis permanently erases ALL settings:\n- WiFi credentials\n- Display & clock config\n- Touch calibration\n- Network settings\n\nThe device restarts into AP setup mode. This cannot be undone.')) return;
-window.location.href = '/reset';
+fetch('/reset', { method: 'POST' }).then(function (r) { if (!r.ok) throw new Error('Reset failed'); return r.text(); }).then(function () { document.body.textContent = 'Settings erased. Reconnect to PixelClock-Setup.'; }).catch(function (e) { alert(e.message); });
 });
 $('#exportBtn').addEventListener('click', function () {
 fetch('/api/export').then(function (r) { return r.json(); }).then(function (data) {
@@ -1274,7 +1295,7 @@ ntpBtn.disabled = true; res.style.color = ''; res.textContent = 'Testing...';
 function run(i) {
 if (i >= jobs.length) { res.innerHTML = lines.join('<br>'); ntpBtn.disabled = false; return; }
 var j = jobs[i];
-fetch('/api/ntptest?server=' + encodeURIComponent(j.srv)).then(function (r) { return r.json(); }).then(function (d) {
+fetch('/api/ntptest?server=' + encodeURIComponent(j.srv), { method: 'POST' }).then(function (r) { return r.json(); }).then(function (d) {
 if (d.success) lines.push('<span style="color:#3fb950">OK</span> ' + j.label + ' (' + esc(j.srv) + ') &middot; ' + esc(d.time) + ' UTC');
 else lines.push('<span style="color:#f85149">no response</span> ' + j.label + ' (' + esc(j.srv) + ')');
 }).catch(function () { lines.push('<span style="color:#f85149">test failed</span> ' + j.label + ' (' + esc(j.srv) + ')'); })

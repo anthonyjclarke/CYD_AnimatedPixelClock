@@ -698,18 +698,12 @@ void displayClockWithAsteroids() {
   if (settings.asteroidsShowDate) {
     display.setTextSize(1);
     char dateStr[12];
-    switch (settings.dateFormat) {
-      case 0: sprintf(dateStr, "%02d/%02d/%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900); break;
-      case 1: sprintf(dateStr, "%02d/%02d/%04d", timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_year + 1900); break;
-      case 2: sprintf(dateStr, "%04d-%02d-%02d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday); break;
-      case 3: sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900); break;
-    }
+    formatDate(dateStr, sizeof(dateStr), &timeinfo);
     int dateX = centerText1(strlen(dateStr));
     if (!settings.asteroidsTransparent) {
       display.fillRect(dateX - 1, 3, strlen(dateStr) * TEXT1_W + 2, TEXT1_H + 1, DISPLAY_BLACK);
     }
-    display.setCursor(dateX, 4);
-    display.print(dateStr);
+    drawDate(dateX, 4, &timeinfo);
   }
   drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, 4, displayed_is_pm);
 

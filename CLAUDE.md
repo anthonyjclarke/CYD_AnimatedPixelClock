@@ -77,7 +77,7 @@ and Doom Fire derive their own row geometry; Doom Fire's grid is 2×2 px cells.
 ## Web installer and releases
 
 Release images come only from `.github/workflows/firmware.yml` on a `v*` tag; a
-local build compiles in `secrets.h`. Design: `docs/WEB_INSTALLER_PLAN.md`.
+local build compiles in `secrets.h`. Procedure: `docs/RELEASING.md`.
 
 - **Never put `firmware-merged.bin` in a manifest.** `merge_bin` fills NVS
   (`0x9000`–`0xdfff`) with `0xFF`; an "Update" would wipe WiFi and settings.

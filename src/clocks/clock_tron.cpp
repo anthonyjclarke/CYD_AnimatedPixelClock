@@ -329,6 +329,6 @@ void displayClockWithTron() {
   drawDuel(now);
   drawDigits(now);
   if(phase!=DUEL) drawBike((int)buildX,(int)buildY,buildDir,bikeColor(builder));
-  if(!settings.use24Hour) drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, 1, pm);
+  if(showMeridiem()) drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, 1, pm);
   if(!wifiConnected) drawNoWiFiIcon(0,0);
 }

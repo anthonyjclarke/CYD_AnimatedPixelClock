@@ -4,7 +4,7 @@
 # Release images come only from here, never from a local build: a local build
 # compiles in include/secrets.h. A tag must equal `v` + FIRMWARE_VERSION, carry
 # no pre-release suffix (no -dev), and point at a commit on main.
-# See docs/WEB_INSTALLER_PLAN.md (Phase 4).
+# See docs/RELEASING.md.
 
 name: Firmware
 
@@ -64,8 +64,16 @@ jobs:
       - name: Build every board
         run: pio run $(sed -n 's/^\[env:\(.*\)\]$/-e \1/p' platformio.ini)
 
+      - name: Run clock regression tests
+        env:
+          CXX: clang++
+        run: python3 tests/host/run_clock_tests.py
+
       - name: Assemble installer site
         run: python3 tools/make_manifests.py --out _site
+
+      - name: Validate installer manifests
+        run: python3 tests/test_installer.py
 
       # Not deployed: a dev build is never published. Download it and serve
       # it on localhost to try the installer from a branch.

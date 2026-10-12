@@ -62,6 +62,7 @@
 <main>
   <h1 id="title">Web Installer</h1>
   <p class="version" id="version"></p>
+  <p class="version"><a id="release-notes" hidden>Release notes</a></p>
   <p class="lead">Install the firmware on your board over USB, straight from
     this page. You don't need PlatformIO or any other tools.</p>
 
@@ -123,6 +124,7 @@
       document.title = info.project + " Installer";
       $("title").textContent = info.project;
       $("version").textContent = "Firmware " + info.version;
+      if (info.releaseNotes) { $("release-notes").href = info.releaseNotes; $("release-notes").hidden = false; }
 
       info.boards.forEach((b, i) => {
         const input = el("input", { type: "radio", name: "board", value: b.manifest, checked: i === 0 });

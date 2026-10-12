@@ -25,6 +25,7 @@ struct Settings {
   bool daylightSaving;      // DST enabled (deprecated, kept for migration)
   char timezoneString[64];  // POSIX TZ string (e.g., "CET-1CEST,M3.5.0/02:00,M10.5.0/03:00")
   uint8_t timezoneIndex;    // Index into timezone database (for UI display)
+  bool hideAmPm;           // Hide indicator while retaining 12-hour time
   bool use24Hour;           // 24-hour format
   uint8_t dateFormat;       // 0=DD/MM/YYYY, 1=MM/DD/YYYY, 2=YYYY-MM-DD, 3=DD.MM.YYYY
   uint8_t clockPosition;    // 0=Center, 1=Left, 2=Right
@@ -59,6 +60,7 @@ struct Settings {
   bool weatherEnabled;          // Master toggle for the fetch task
   float weatherLat;             // Location latitude (0,0 = unset)
   float weatherLon;             // Location longitude
+  uint8_t weatherLayout;       // 0=Current, 1=Rows, 2=Columns, 3=Hourly, 4=Tomorrow
   bool weatherUseFahrenheit;    // false = Celsius
   char weatherApiKey[33];       // Optional commercial API key ("" = free endpoint)
   char weatherPlace[48];        // Place name from the web UI search ("" = coordinates typed by hand)
@@ -163,6 +165,8 @@ struct Settings {
   uint8_t matrixRainSpeed;      // Rain fall speed, tenths (12 = 1.2)
   uint8_t matrixRainDensity;    // 0=Sparse, 1=Normal, 2=Dense
   bool matrixShowDate;          // Show date row (off = centred clock)
+  bool matrixSmoothScroll;      // Pixel-by-pixel leading glyph; fixed-cell trail
+  bool matrixSmallClock;        // Small top-right clock, with digit decoding
   bool matrixTransparent;       // No mask behind digits, rain falls through (default: false)
 
   // Missile Command clock settings (style retired; kept inert for NVS/export stability)

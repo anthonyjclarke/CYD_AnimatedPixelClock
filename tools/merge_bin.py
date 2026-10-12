@@ -23,7 +23,7 @@
 # Offsets come from FLASH_EXTRA_IMAGES and ESP32_APP_OFFSET, and flash mode and
 # frequency from the builder's own helpers, so the result matches what
 # `pio run -t upload` writes. Shared across CYD projects - see
-# docs/WEB_INSTALLER_PLAN.md.
+# docs/RELEASING.md.
 
 Import("env")  # noqa: F821 - provided by PlatformIO
 

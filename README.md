@@ -1,7 +1,7 @@
 # CYD_AnimatedPixelClock
 
 <!-- Update version badge when FIRMWARE_VERSION changes in include/config.h -->
-![Version](https://img.shields.io/badge/version-1.5.0--dev-blue.svg)
+![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-ESP32-green.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-6.x-orange.svg)
 ![Board](https://img.shields.io/badge/CYD-2.4%22%20%7C%202.8%22%20%7C%204.0%22-yellow.svg)
@@ -96,9 +96,9 @@ Build sizes, all three well inside a 1.792 MB OTA slot:
 
 | Environment    | Flash               | Static RAM       |
 | :------------- | :------------------ | :--------------- |
-| `esp32-cyd-24` | 1,449,925 B (79.0%) | 80,888 B (24.7%) |
-| `esp32-cyd-28` | 1,449,925 B (79.0%) | 80,888 B (24.7%) |
-| `esp32-cyd-40` | 1,442,765 B (78.6%) | 98,216 B (30.0%) |
+| `esp32-cyd-24` | 1,463,633 B (79.8%) | 81,200 B (24.8%) |
+| `esp32-cyd-28` | 1,463,633 B (79.8%) | 81,200 B (24.8%) |
+| `esp32-cyd-40` | 1,456,341 B (79.4%) | 98,576 B (30.1%) |
 
 The canvas is allocated from the heap on top of that: 38.4 KB on the 2.4″ and
 2.8″, 76.8 KB on the 4.0″.
@@ -187,7 +187,7 @@ around it.
 dino are fixed pixel art. `SPRITE_SCALE` expands each drawn pixel into a block at
 draw time, so the art keeps its look at any size. It defaults to a third of the
 digit text size (×1 on 160×120, ×2 on 240×160), which puts Mario at half to
-two-thirds of the digit height. Only Mario uses it so far.
+two-thirds of the digit height. Mario and Weather icons use it so far.
 
 The constraint that fixes the vertical composition is that Mario bounces a digit
 by putting his head against its underside, so the gap between the digit row and
@@ -280,6 +280,8 @@ Tapping and Cycle All both skip the Weather style until a location is set.
 
 Set the weather location by searching for a city under the Weather style's
 settings, then press **Save**; the place name is kept alongside its coordinates.
+The Weather layout selector offers current conditions, three-day rows or columns,
+a twelve-hour graph and a tomorrow view.
 Weather is only fetched while it can be shown — with the Weather style selected,
 or in a Cycle All rotation that includes it — so after a reboot on another style
 the Weather screen takes a few seconds to fill in when you switch to it.
@@ -288,9 +290,9 @@ A screensaver — Space Invaders, Pac-Man, a starfield or an aquarium — can
 replace the clock during set hours, or on demand from the Display page. Tap the
 screen while it runs to see the clock for a minute.
 
-A factory reset at `http://pixelclock.local/reset` erases every setting **and**
-the WiFi credentials, and the device restarts as the `PixelClock-Setup` access
-point.
+Factory reset from the web UI erases every setting **and** the WiFi credentials,
+and restarts into the `PixelClock-Setup` access point. Scripts use `POST /reset`.
+Runtime controls now require POST; see the [API migration notes](docs/API_MIGRATION.md).
 
 ---
 
@@ -352,6 +354,10 @@ slowest loop pass.
 
 ## Roadmap
 
+Release changes are recorded in [CHANGELOG.md](CHANGELOG.md). The maintained
+[regression checklist](tests/README.md) covers clocks, forecasts, settings and
+updates. API callers should follow the [POST migration guide](docs/API_MIGRATION.md).
+
 What to work on next, roughly in order of how much it would improve the thing on
 a desk. Anything genuinely broken is listed as a bug and comes first.
 
@@ -384,7 +390,7 @@ a desk. Anything genuinely broken is listed as a bug and comes first.
 ### Improvements worth making
 
 - **Magnify the other styles' characters.** `SPRITE_SCALE` and the `CydDisplay`
-  transform are in place, but only Mario uses them. Pac-Man's *digits* are a
+  transform are in place for Mario and Weather icons. Pac-Man's *digits* are a
   pellet grid and must not be scaled with him.
 - **Scenery for other styles.** The bottom-up layout leaves a sky band above the
   digits in every style, and only Mario fills it.

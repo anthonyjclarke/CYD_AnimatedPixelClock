@@ -28,6 +28,7 @@ import re
 import shutil
 import sys
 from pathlib import Path
+from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG_H = ROOT / "include" / "config.h"
@@ -82,14 +83,14 @@ def main():
         parts_file = build / "flash_parts.json"
         if not parts_file.exists():
             sys.exit("error: %s missing - build %s first" % (parts_file, b["env"]))
-        dest = out / "firmware" / b["env"]
+        dest = out / "firmware" / version / b["env"]
         dest.mkdir(parents=True)
 
         parts = []
         for part in json.loads(parts_file.read_text()):
             src = Path(part["path"])
             shutil.copy2(src, dest / src.name)
-            parts.append({"path": "firmware/%s/%s" % (b["env"], src.name),
+            parts.append({"path": "firmware/%s/%s/%s" % (version, b["env"], src.name),
                           "offset": part["offset"]})
 
         manifest = {
@@ -100,13 +101,15 @@ def main():
         }
         name = "manifest-%s.json" % b["env"]
         (out / name).write_text(json.dumps(manifest, indent=2) + "\n")
-        boards.append(dict(b, manifest=name))
+        boards.append(dict(b, manifest=name + "?v=" + quote(version, safe="")))
         print("%-14s %s" % (b["env"], ", ".join("0x%x" % p["offset"] for p in parts)))
 
     index = {
         "project": project,
         "version": version,
         "repository": config_string(cfg, "PROJECT_REPO_URL"),
+        "releaseNotes": config_string(cfg, "PROJECT_REPO_URL") +
+            ("/blob/dev/CHANGELOG.md" if "-" in version else "/releases/tag/v" + version),
         "basedOn": {
             "project": config_string(cfg, "UPSTREAM_PROJECT"),
             "author": config_string(cfg, "UPSTREAM_AUTHOR"),

@@ -8,6 +8,7 @@
 #include "web.h"
 #include "../config/globals.h"
 #include "../config/settings.h"
+#include "../config/palette_import.h"
 #include "../touch/touch.h"
 #include "../network/network.h"
 #include "../utils/utils.h"
@@ -19,6 +20,8 @@
 #include "../ambient/ambient.h"
 #include "../health/boot_health.h"
 #include "web_pages.h"
+#include "request_policy.h"
+#include "../config/settings_export.h"
 #include <WebServer.h>
 #include <Update.h>
 #include <LittleFS.h>
@@ -46,6 +49,17 @@ uint32_t loopMaxMs();
 const char *loopSlowPart();
 uint32_t loopSlowPartMs();
 
+static bool refuseCrossSite() {
+  if (!requestFromOtherSite(server.header("Origin").c_str(),server.header("Sec-Fetch-Site").c_str(),server.hostHeader().c_str())) return false;
+  server.send(403,"text/plain","Refused: request from another site");return true;
+}
+static void mutationRoute(const char* path,void (*handler)()) {
+  server.on(path,HTTP_ANY,[handler]() {
+    if (server.method()!=HTTP_POST) {server.sendHeader("Allow","POST");server.send(405,"text/plain","Use POST");return;}
+    if (!refuseCrossSite()) handler();
+  });
+}
+
 // ========== Web Server Setup ==========
 static uint32_t runningFirmwareBytes = 0;
 
@@ -58,65 +72,58 @@ void setupWebServer() {
  server.on("/portal.js", HTTP_GET, handlePortalJs);
  server.on("/favicon.svg", HTTP_GET, handleFavicon);
  server.on("/favicon.ico", HTTP_GET, handleFavicon);
- server.on("/save", HTTP_POST, handleSave);
- server.on("/reset", handleReset);
+ mutationRoute("/save", handleSave);
+ mutationRoute("/reset", handleReset);
  server.on("/api/info", HTTP_GET, handleDeviceInfo);
  server.on("/api/diagnostics", HTTP_GET, handleDeviceInfo);
- server.on("/api/export", HTTP_GET, handleExportConfig);
- server.on("/api/import", HTTP_POST, handleImportConfig);
- server.on("/api/rename", HTTP_POST, handleRename);
- server.on("/api/ntptest", HTTP_GET, handleNtpTest);
- server.on("/api/notify", HTTP_POST, handleNotify);
- server.on("/api/notify/dismiss", HTTP_GET, handleNotifyDismiss);
+ server.on("/api/export", HTTP_GET, [](){if (!refuseCrossSite()) handleExportConfig();});
+ mutationRoute("/api/import", handleImportConfig);
+ mutationRoute("/api/rename", handleRename);
+ mutationRoute("/api/ntptest", handleNtpTest);
+ mutationRoute("/api/notify", handleNotify);
+ mutationRoute("/api/notify/dismiss", handleNotifyDismiss);
 
  // Runtime control API (display power, mode, brightness, clock style, reboot)
  server.on("/api/status", HTTP_GET, handleStatus);
- server.on("/api/display/on", HTTP_GET, handleDisplayOn);
- server.on("/api/display/off", HTTP_GET, handleDisplayOff);
- server.on("/api/display/brightness", HTTP_GET, handleSetBrightness);
- server.on("/api/mode/clock", HTTP_GET, handleModeClock);
- server.on("/api/mode/auto", HTTP_GET, handleModeAuto);
- server.on("/api/mode/ambient", HTTP_GET, handleModeAmbient);
- server.on("/api/clock/style", HTTP_GET, handleSetClockStyle);
- server.on("/api/reboot", HTTP_GET, handleReboot);
+ mutationRoute("/api/display/on", handleDisplayOn);
+ mutationRoute("/api/display/off", handleDisplayOff);
+ mutationRoute("/api/display/brightness", handleSetBrightness);
+ mutationRoute("/api/mode/clock", handleModeClock);
+ mutationRoute("/api/mode/auto", handleModeAuto);
+ mutationRoute("/api/mode/ambient", handleModeAmbient);
+ mutationRoute("/api/clock/style", handleSetClockStyle);
+ mutationRoute("/api/reboot", handleReboot);
 
- // OTA Firmware Update handlers
- server.on("/update", HTTP_POST, []() {
- if (Update.hasError()) {
-   // Surface the real reason (non-200 so the UI knows it failed). The common
-   // case once the firmware outgrows an older default partition table is a
-   // space error - a one-time full serial flash rewrites the partition table
-   // and so repartitions to the larger OTA slots.
-   String msg = String("Update failed: ") + Update.errorString() +
-                ". If this is a size/space error the firmware no longer fits this "
-                "device's OTA partition - re-flash once over USB (full flash) to repartition.";
-   server.send(500, "text/plain", msg);
-   return; // keep running the current firmware
- }
- server.send(200, "text/plain", "OK");
- delay(1000);
- ESP.restart();
- }, []() {
- HTTPUpload& upload = server.upload();
- esp_task_wdt_reset();  // a slow OTA otherwise trips the 15s watchdog mid-flash
- if (upload.status == UPLOAD_FILE_START) {
- DBG_INFO("Update: %s", upload.filename.c_str());
- if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { // Start with max available size
- Update.printError(Serial);
- }
- } else if (upload.status == UPLOAD_FILE_WRITE) {
- // Write uploaded data
- if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
- Update.printError(Serial);
- }
- } else if (upload.status == UPLOAD_FILE_END) {
- if (Update.end(true)) { // true = set size to current progress
- DBG_INFO("Update Success: %u bytes\nRebooting...", upload.totalSize);
- } else {
- Update.printError(Serial);
- }
- }
+ // Consume completion state before responding; a later empty request must
+ // never reuse success from an earlier upload. Rejected requests never touch flash.
+ static OtaUploadState ota;
+ server.on("/update",HTTP_POST,[]() {
+   bool written=ota.canRestart(),started=ota.started,failed=ota.failed;
+   ota.clear();
+   if (refuseCrossSite()) return;
+   if (!started) {server.send(400,"text/plain","No firmware file received");return;}
+   if (failed || !written || Update.hasError()) {
+     server.send(500,"text/plain",String("Update failed: ")+Update.errorString());return;
+   }
+   server.send(200,"text/plain","OK");delay(1000);ESP.restart();
+ },[]() {
+   if (!multipartUploadContentType(server.header("Content-Type").c_str())) return;
+   if (requestFromOtherSite(server.header("Origin").c_str(),server.header("Sec-Fetch-Site").c_str(),server.hostHeader().c_str())) return;
+   HTTPUpload& upload=server.upload();esp_task_wdt_reset();
+   if (upload.status==UPLOAD_FILE_START) {
+     ota.begin();DBG_INFO("Update: %s",upload.filename.c_str());
+     if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {ota.failed=true;Update.printError(Serial);}
+   } else if (upload.status==UPLOAD_FILE_WRITE) {
+     if (!ota.started || ota.failed) return;
+     if (Update.write(upload.buf,upload.currentSize)!=upload.currentSize) {ota.failed=true;Update.abort();}
+   } else if (upload.status==UPLOAD_FILE_END) {
+     if (ota.started && !ota.failed) {ota.complete=Update.end(true);ota.failed=!ota.complete;}
+   } else if (upload.status==UPLOAD_FILE_ABORTED) {
+     Update.abort();ota.clear();
+   }
  });
+ static const char* headers[]={"Origin","Sec-Fetch-Site","Content-Type"};
+ server.collectHeaders(headers,3);
 
  server.begin();
 }
@@ -205,21 +212,21 @@ void handleStatus() {
  sendJsonGuarded(200, json);
 }
 
-// GET /api/display/on - turn the panel back on (restore normal/scheduled brightness)
+// POST /api/display/on - turn the panel back on (restore normal/scheduled brightness)
 void handleDisplayOn() {
  setDisplayForcedOff(false);
  server.sendHeader("Access-Control-Allow-Origin", "*");
  server.send(200, "application/json", "{\"success\":true,\"displayOn\":true}");
 }
 
-// GET /api/display/off - hold the panel off (suppresses scheduled brightness re-applies)
+// POST /api/display/off - hold the panel off (suppresses scheduled brightness re-applies)
 void handleDisplayOff() {
  setDisplayForcedOff(true);
  server.sendHeader("Access-Control-Allow-Origin", "*");
  server.send(200, "application/json", "{\"success\":true,\"displayOn\":false}");
 }
 
-// GET /api/display/brightness?value=0-100 - set brightness percentage
+// POST /api/display/brightness?value=0-100 - set brightness percentage
 void handleSetBrightness() {
  server.sendHeader("Access-Control-Allow-Origin", "*");
  if (!server.hasArg("value")) {
@@ -234,7 +241,7 @@ void handleSetBrightness() {
              "{\"success\":true,\"brightness\":" + String(value) + "}");
 }
 
-// GET /api/mode/clock - force clock display.
+// POST /api/mode/clock - force clock display.
 //
 // Upstream this overrode the PC-metrics screen. The CYD port only ever shows a
 // clock, so both mode endpoints are now no-ops kept for API compatibility with
@@ -246,7 +253,7 @@ void handleModeClock() {
  server.send(200, "application/json", "{\"success\":true,\"mode\":\"clock\"}");
 }
 
-// GET /api/mode/auto - resume automatic mode
+// POST /api/mode/auto - resume automatic mode
 void handleModeAuto() {
  httpForceClock = false;
  httpForceAmbient = false;
@@ -254,7 +261,7 @@ void handleModeAuto() {
  server.send(200, "application/json", "{\"success\":true,\"mode\":\"auto\"}");
 }
 
-// GET /api/mode/ambient - show the screensaver now, until /api/mode/auto,
+// POST /api/mode/ambient - show the screensaver now, until /api/mode/auto,
 // /api/mode/clock or a reboot. A tap still shows the clock for a while.
 void handleModeAmbient() {
  ambientStart("API");
@@ -263,7 +270,7 @@ void handleModeAmbient() {
  server.send(200, "application/json", "{\"success\":true,\"mode\":\"ambient\"}");
 }
 
-// GET /api/clock/style?id=0-17 - switch the active clock animation
+// POST /api/clock/style?id=0-17 - switch the active clock animation
 void handleSetClockStyle() {
  server.sendHeader("Access-Control-Allow-Origin", "*");
  if (!server.hasArg("id")) {
@@ -280,7 +287,7 @@ void handleSetClockStyle() {
              "{\"success\":true,\"clockStyle\":" + String(id) + "}");
 }
 
-// GET /api/reboot - soft restart (non-destructive, unlike /reset which wipes config)
+// POST /api/reboot - soft restart (non-destructive, unlike /reset which wipes config)
 void handleReboot() {
  server.sendHeader("Access-Control-Allow-Origin", "*");
  server.send(200, "application/json", "{\"success\":true,\"message\":\"Rebooting\"}");
@@ -397,7 +404,7 @@ void handleNotify() {
  server.send(200, "application/json", "{\"success\":true}");
 }
 
-// GET /api/notify/dismiss - clear the current banner early.
+// POST /api/notify/dismiss - clear the current banner early.
 void handleNotifyDismiss() {
  server.sendHeader("Access-Control-Allow-Origin", "*");
  notifyDismiss();
@@ -483,6 +490,7 @@ static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
     {COL_WEATHER_ICON, 14, "Icon"},
     {COL_WEATHER_ACCENT, 14, "Rain / effects"},
     {COL_WEATHER_TEMP, 14, "Temperature"},
+    {COL_WEATHER_DETAIL, 14, "Details row"},
     {COL_VIZ_LOW, -3, "Bars (bottom)"},
     {COL_VIZ_MID, -3, "Bars (middle)"},
     {COL_VIZ_PEAK, -3, "Bars (top) + peaks"},
@@ -534,13 +542,14 @@ static const StyleCard STYLE_CARDS[] = {
 // Clock styles that appear in the style selector, each shown a per-style digit
 // color row. Order = display order. (Style 4 is a non-selectable variant of 3 and
 // has no picker; its digit slot still exists and defaults to white.)
-static const int DIGIT_STYLES[] = {0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17};
+static const int DIGIT_STYLES[] = {0, 1, 2, 3, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17};
 
 // The single per-page "Colors" card on the Clock page: the selected style's sprite
 // rows (in a subcard div toggled by syncClockPanels), then that style's time-digit
 // color row (class "digitc", toggled by clock style value), then reset.
 static String buildColorsCard() {
   String out = F("<div class=\"card\"><h2 class=\"card-title\">Colors</h2>");
+  out += colorInputRow(COL_DATE, "Date, weekday + AM/PM");
   for (size_t i = 0; i < sizeof(STYLE_CARDS) / sizeof(STYLE_CARDS[0]); i++) {
     String rows = buildColorRows(STYLE_CARDS[i].style);
     if (rows.length() == 0) continue;  // this style has no sprite color rows yet
@@ -774,6 +783,8 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "SEL_MATRIXRAINDENSITY_1")) { out = String(settings.matrixRainDensity == 1 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_MATRIXRAINDENSITY_2")) { out = String(settings.matrixRainDensity == 2 ? "selected" : ""); return true; }
   if (!strcmp(n, "CHK_MATRIXSHOWDATE")) { out = String(settings.matrixShowDate ? "checked" : ""); return true; }
+  if (!strcmp(n, "CHK_MATRIXSMOOTH")) { out = String(settings.matrixSmoothScroll ? "checked" : ""); return true; }
+  if (!strcmp(n, "CHK_MATRIXSMALLCLOCK")) { out = String(settings.matrixSmallClock ? "checked" : ""); return true; }
   if (!strcmp(n, "CHK_MATRIXTRANSPARENT")) { out = String(settings.matrixTransparent ? "checked" : ""); return true; }
   if (!strcmp(n, "DSP_CLOCKSTYLE_14")) { out = String(settings.clockStyle == 14 ? "block" : "none"); return true; }
   if (!strcmp(n, "DSP_CLOCKSTYLE_17")) { out = String(settings.clockStyle == 17 ? "block" : "none"); return true; }
@@ -789,10 +800,18 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "CHK_WEATHERF")) { out = String(settings.weatherUseFahrenheit ? "checked" : ""); return true; }
   if (!strcmp(n, "V_WEATHERLAT")) { out = String(settings.weatherLat, 4); return true; }
   if (!strcmp(n, "V_WEATHERLON")) { out = String(settings.weatherLon, 4); return true; }
+  if (!strncmp(n,"SEL_WEATHERLAYOUT_",sizeof("SEL_WEATHERLAYOUT_")-1)) {
+    const char* value=n+sizeof("SEL_WEATHERLAYOUT_")-1;
+    if (value[0]>='0' && value[0]<='4' && !value[1]) {
+      out=String(settings.weatherLayout==value[0]-'0'?"selected":"");return true;
+    }
+    return false;
+  }
   if (!strcmp(n, "V_WEATHERKEY")) { out = String(settings.weatherApiKey); return true; }
   if (!strcmp(n, "V_WEATHERPLACE")) { out = htmlAttr(settings.weatherPlace); return true; }
   if (!strcmp(n, "SEL_USE24HOUR")) { out = String(settings.use24Hour ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_USE24HOUR_NOT")) { out = String(!settings.use24Hour ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_USE24HOUR_NOT")) { out = String(!settings.use24Hour && !settings.hideAmPm ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_HIDEAMPM")) { out = String(!settings.use24Hour && settings.hideAmPm ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_DATEFORMAT_0")) { out = String(settings.dateFormat == 0 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_DATEFORMAT_1")) { out = String(settings.dateFormat == 1 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_DATEFORMAT_2")) { out = String(settings.dateFormat == 2 ? "selected" : ""); return true; }
@@ -1101,7 +1120,11 @@ void handleSave() {
  }
 
  if (server.hasArg("use24Hour")) {
- settings.use24Hour = server.arg("use24Hour").toInt() == 1;
+ int format = server.arg("use24Hour").toInt();
+ if (format >= 0 && format <= 2) {
+   settings.use24Hour = format == 1;
+   settings.hideAmPm = format == 2;
+ }
  }
  if (server.hasArg("dateFormat")) {
  settings.dateFormat = server.arg("dateFormat").toInt();
@@ -1216,6 +1239,7 @@ void handleSave() {
  settings.weatherLon = lon;
  }
  settings.weatherUseFahrenheit = server.hasArg("weatherFahrenheit");
+ if (server.hasArg("weatherLayout")) settings.weatherLayout = (uint8_t)constrain(server.arg("weatherLayout").toInt(),0,4);
  if (server.hasArg("weatherApiKey")) {
  String key = server.arg("weatherApiKey");
  if (key.length() <= 32) {
@@ -1421,6 +1445,8 @@ void handleSave() {
  }
  settings.matrixShowDate = server.hasArg("matrixShowDate");
  settings.matrixTransparent = server.hasArg("matrixTransparent");
+ settings.matrixSmoothScroll = server.hasArg("matrixSmoothScroll");
+ settings.matrixSmallClock = server.hasArg("matrixSmallClock");
 
  // Save network configuration
  if (server.hasArg("deviceName")) {
@@ -1619,61 +1645,10 @@ void handleReset() {
 // Export configuration as JSON
 void handleExportConfig() {
  netMarkHttp();
- String json = "{";
-
- // Clock settings
- json += "\"cycleConfig\":\"" + String(settings.cycleConfig) + "\",";
- json += "\"clockStyle\":" + String(settings.clockStyle) + ",";
- json += "\"tronBikeStyle\":" + String(settings.tronBikeStyle) + ",";
- json += "\"doomFlameHeight\":" + String(settings.doomFlameHeight) + ",";
- json += "\"doomGroundHeight\":" + String(settings.doomGroundHeight) + ",";
- json += "\"doomWind\":" + String(settings.doomWind) + ",";
- json += "\"doomShowDate\":" + String(settings.doomShowDate ? "true" : "false") + ",";
- json += "\"doomBurningDigits\":" + String(settings.doomBurningDigits ? "true" : "false") + ",";
- json += "\"doomSmoothFire\":" + String(settings.doomSmoothFire ? "true" : "false") + ",";
- json += "\"ambientEnabled\":" + String(settings.ambientEnabled ? "true" : "false") + ",";
- json += "\"ambientStyle\":" + String(settings.ambientStyle) + ",";
- json += "\"ambientStartHour\":" + String(settings.ambientStartHour) + ",";
- json += "\"ambientEndHour\":" + String(settings.ambientEndHour) + ",";
- json += "\"ambientShowClock\":" + String(settings.ambientShowClock ? "true" : "false") + ",";
- json += "\"timezoneString\":\"" + String(settings.timezoneString) + "\",";
- json += "\"gmtOffset\":" + String(settings.gmtOffset) + ",";
- json += "\"daylightSaving\":" + String(settings.daylightSaving ? "true" : "false") + ",";
- json += "\"use24Hour\":" + String(settings.use24Hour ? "true" : "false") + ",";
- json += "\"dateFormat\":" + String(settings.dateFormat) + ",";
- json += "\"clockPosition\":" + String(settings.clockPosition) + ",";
- json += "\"clockOffset\":" + String(settings.clockOffset) + ",";
- json += "\"deviceName\":\"" + String(settings.deviceName) + "\",";
- json += "\"showIPAtBoot\":" + String(settings.showIPAtBoot ? "true" : "false") + ",";
- json += "\"ntpServer1\":\"" + String(settings.ntpServer1) + "\",";
- json += "\"ntpServer2\":\"" + String(settings.ntpServer2) + "\",";
- json += "\"notifyEnabled\":" + String(settings.notifyEnabled ? "true" : "false") + ",";
- json += "\"notifyPosition\":" + String(settings.notifyPosition) + ",";
- json += "\"weatherEnabled\":" + String(settings.weatherEnabled ? "true" : "false") + ",";
- json += "\"weatherLat\":" + String(settings.weatherLat, 4) + ",";
- json += "\"weatherLon\":" + String(settings.weatherLon, 4) + ",";
- json += "\"weatherUseFahrenheit\":" + String(settings.weatherUseFahrenheit ? "true" : "false") + ",";
- json += "\"weatherApiKey\":\"" + String(settings.weatherApiKey) + "\",";
-  {
-    // The place name comes from a third-party API and may hold quotes, so let
-    // ArduinoJson escape it rather than concatenating it raw.
-    JsonDocument placeDoc;
-    placeDoc.set(settings.weatherPlace);
-    String placeJson;
-    serializeJson(placeDoc, placeJson);
-    json += "\"weatherPlace\":" + placeJson + ",";
-  }
-
- json += "\"spriteColors\":[";
- for (int i = 0; i < COL_COUNT; i++) {
- if (i > 0) json += ",";
- json += "\"" + rgb565ToHex(settings.spriteColors[i]) + "\"";
- }
- json += "]";
-
- json += "}";
-
- server.sendHeader("Access-Control-Allow-Origin", "*");
+ JsonDocument doc;writeConfigExport(doc,settings);
+ String json;serializeJson(doc,json);
+ server.sendHeader("Content-Disposition","attachment; filename=pixelclock-config.json");
+ server.sendHeader("Cache-Control","no-store");
  server.setContentLength(json.length());
  server.send(200, "application/json", "");
  WiFiClient client = server.client();
@@ -1756,6 +1731,14 @@ void handleImportConfig() {
  return;
  }
 
+ // Validate before applying any fields: a failed import must not partially
+ // overwrite settings because its palette schema was unrecognised.
+ const char* colorSchema = doc["colorSchema"] | (const char*)nullptr;
+ if ((!doc["colorSchema"].isNull() && !doc["colorSchema"].is<const char*>()) ||
+     !supportedColorSchema(colorSchema)) {
+   server.send(400, "application/json", "{\"success\":false,\"message\":\"Unsupported color schema\"}");
+   return;
+ }
  if (!doc["cycleConfig"].isNull()) {
    const char* cycle = doc["cycleConfig"]; CycleEntry checked[CYCLE_COUNT];
    if (!cycle || strlen(cycle) >= sizeof(settings.cycleConfig) || !parseCycleConfig(cycle, checked)) {
@@ -1764,6 +1747,18 @@ void handleImportConfig() {
    strcpy(settings.cycleConfig, cycle);
  }
  // Import clock settings
+ if (doc["matrixRainSpeed"].is<int>()) {
+   int v = doc["matrixRainSpeed"].as<int>();
+   if (v >= 5 && v <= 30) settings.matrixRainSpeed = (uint8_t)v;
+ }
+ if (doc["matrixRainDensity"].is<int>()) {
+   int v = doc["matrixRainDensity"].as<int>();
+   if (v >= 0 && v <= 2) settings.matrixRainDensity = (uint8_t)v;
+ }
+ if (doc["matrixShowDate"].is<bool>()) settings.matrixShowDate = doc["matrixShowDate"].as<bool>();
+ if (doc["matrixTransparent"].is<bool>()) settings.matrixTransparent = doc["matrixTransparent"].as<bool>();
+ if (doc["matrixSmoothScroll"].is<bool>()) settings.matrixSmoothScroll = doc["matrixSmoothScroll"].as<bool>();
+ if (doc["matrixSmallClock"].is<bool>()) settings.matrixSmallClock = doc["matrixSmallClock"].as<bool>();
  if (!doc["tronBikeStyle"].isNull()) {
    settings.tronBikeStyle = doc["tronBikeStyle"].is<int>() && doc["tronBikeStyle"].as<int>() == 1 ? 1 : 0;
  }
@@ -1803,6 +1798,7 @@ void handleImportConfig() {
  if (!doc["gmtOffset"].isNull()) settings.gmtOffset = doc["gmtOffset"];
  if (!doc["daylightSaving"].isNull()) settings.daylightSaving = doc["daylightSaving"];
  if (!doc["use24Hour"].isNull()) settings.use24Hour = doc["use24Hour"];
+ if (doc["hideAmPm"].is<bool>()) settings.hideAmPm = doc["hideAmPm"].as<bool>();
  if (!doc["dateFormat"].isNull()) settings.dateFormat = doc["dateFormat"];
  if (!doc["clockPosition"].isNull()) settings.clockPosition = doc["clockPosition"];
  if (!doc["clockOffset"].isNull()) settings.clockOffset = doc["clockOffset"];
@@ -1812,6 +1808,10 @@ void handleImportConfig() {
  if (!doc["weatherEnabled"].isNull()) settings.weatherEnabled = doc["weatherEnabled"];
  if (!doc["weatherLat"].isNull()) settings.weatherLat = doc["weatherLat"];
  if (!doc["weatherLon"].isNull()) settings.weatherLon = doc["weatherLon"];
+ if (doc["weatherLayout"].is<int>()) {
+   int layout=doc["weatherLayout"].as<int>();
+   if (layout>=0 && layout<=4) settings.weatherLayout=layout;
+ }
  if (!doc["weatherUseFahrenheit"].isNull()) settings.weatherUseFahrenheit = doc["weatherUseFahrenheit"];
  if (!doc["weatherApiKey"].isNull()) {
    const char* key = doc["weatherApiKey"];
@@ -1846,7 +1846,9 @@ void handleImportConfig() {
  // Sprite colors (array of "#rrggbb" strings). Validated; bad entries skipped.
  if (!doc["spriteColors"].isNull()) {
  JsonArray cols = doc["spriteColors"];
- for (int i = 0; i < COL_COUNT && i < (int)cols.size(); i++) {
+ for (int i = 0; i < (int)cols.size(); i++) {
+ int slot = paletteImportSlot(i, colorSchema);
+ if (slot < 0) continue;
  const char* cs = cols[i];
  if (!cs) continue;
  String v(cs);
@@ -1856,7 +1858,7 @@ void handleImportConfig() {
  if (!ok) continue;
  long rgb = strtol(v.c_str() + 1, nullptr, 16);
  uint8_t r8 = (rgb >> 16) & 0xFF, g8 = (rgb >> 8) & 0xFF, b8 = rgb & 0xFF;
- settings.spriteColors[i] = ((r8 >> 3) << 11) | ((g8 >> 2) << 5) | (b8 >> 3);
+ settings.spriteColors[slot] = ((r8 >> 3) << 11) | ((g8 >> 2) << 5) | (b8 >> 3);
  }
  }
 

@@ -16,7 +16,9 @@ same commit.
 | Upstream release ported    | v2.3.0, released 09-09-2026     |
 | Later upstream work ported | `f504bd4` Doom Fire, 13-09-2026 |
 | Fork work ported           | NickoScope `8ec3045`, `fc67bda` |
-| Upstream last compared     | `main` on 15-09-2026            |
+| Upstream last compared     | `25b1928` (`main`), 12-10-2026    |
+| October changes ported     | `25b1928`, `6eeda69`, `e2ffe57`, `3d46171`, `1555601`, `883fa7a`, `093e4ca`, `a5f6d2f` |
+| Forecast/maintenance ported | `9fa9ba4`, `abf9e8c`, `c65f791`, `e1c08ba`, `6ad38a3`, `a5c164f`, `9fe4c15`, `e3be022`, `9e933d2` |
 | Port version numbering     | Restarted at 1.0.0              |
 
 ---
@@ -151,12 +153,14 @@ says what reviving each part would take.
   Positions upstream tied to size 3 — digit collision boxes, pellet pitch, the
   weather degree sign — are derived from `DIGIT_TEXT_SIZE`.
 - **Sprite magnification.** `SPRITE_SCALE` magnifies character art at draw time:
-  ×1 on 160×120 and ×2 on 240×160 by default. Upstream draws sprites 1:1. Only
-  Mario uses it so far.
+  ×1 on 160×120 and ×2 on 240×160 by default. Upstream draws sprites 1:1. Mario and
+  Weather icons use it; other clock characters remain unscaled.
 - **Vertical composition.** Built bottom-up from the text rows, so the character
   band stays exactly one sprite tall.
 - **Matrix Rain.** The rain grid is derived from the canvas; upstream's is fixed
-  at 21×8 cells.
+  at 21×8 cells. The corner clock is size 2 on 160×120 and size 3 on
+  240×160, right-aligned from the canvas width; upstream uses size 1 at fixed
+  coordinates. Katakana, smooth fall and 2.2-second decoding follow upstream.
 - **Tetris.** The well is 11 rows (25 in small-clock mode) instead of 5 (13),
   and its row mask is 64 bits instead of 32.
 - **Snake.** The arena is 40×30 cells (60×40 on the 4.0″) instead of 32×16, and
@@ -177,7 +181,20 @@ says what reviving each part would take.
   shoe colours are corrected, new colour slots cover hair, buttons and scenery,
   and optional World 1-1 scenery (`marioScenery`) fills the sky.
 - **Cycle All.** The style picker calls style 9 "Cycle All"; upstream's picker
-  says "Custom rotation".
+  says "Custom rotation". Both now use each rendered clock's digit colour.
+- **Weather icons.** Upstream's richer icon animations are ported, magnified
+  by `SPRITE_SCALE` with space reserved beside the temperature. Wind streaks
+  stay inside the icon area. Day/night comes from Open-Meteo's location-specific
+  `is_day`, so a different clock timezone or unavailable NTP cannot pick the
+  wrong scene. Upstream compares clock time with the location's sun times.
+  Current conditions remain the default and the commercial API-key option is
+  retained. Three-day rows/columns, hourly graph and tomorrow layouts place
+  forecasts in a canvas-derived bottom band, rather than upstream's fixed left/
+  right split. Forecast mini icons follow upstream. One-fetch tasks release
+  their stack between requests, with immutable settings snapshots and generation
+  checks to reject an old response after location changes. Partial/invalid
+  forecasts fall back to placeholders or daily rows. The request buffer is
+  512 bytes to also accommodate the retained commercial API key.
 
 ### Defaults
 
@@ -204,11 +221,13 @@ empty, not as a matter of taste.
   calibration separately in `cydtouch`. Settings are not migrated from upstream.
 - **Factory reset** asks each module to clear its own namespace, so it erases
   touch calibration too.
-- **Colour slot order.** After `COL_SCOPE_PEAK` the port has six Mario slots,
-  then Doom Fire's four; upstream has Doom Fire's straight after
-  `COL_SCOPE_PEAK`. Config export writes colours as an array indexed by slot, so
-  colours from an upstream export land on the wrong slots in the port, and the
-  reverse. Every other exported setting maps by name.
+- **Colour slot order and backups.** CYD has six additional Mario slots before
+  Doom Fire; its date and Weather-details slots are appended after Doom. New
+  exports declare `colorSchema: "cyd-v1"`; unmarked historical backups retain
+  CYD indexing. Explicit `upstream-25b1928` imports map common/Doom/date/details
+  slots while skipping upstream's LED slots and preserving CYD Mario additions.
+  No origin is guessed from array length. CYD-to-upstream palette imports remain
+  incompatible with upstream's positional importer.
 - **Settings struct.** The `Settings` struct lives in `src/config/globals.h`, and
   user-tuneable constants in `include/config.h`. Upstream keeps both in
   `src/config/config.h`.
@@ -216,6 +235,13 @@ empty, not as a matter of taste.
 ---
 
 ## Web UI and API
+
+- **Request maintenance.** Mutations and the NTP probe use POST with same-origin
+  browser checks; headerless script clients remain supported. Export strings
+  are serialized through ArduinoJson and wildcard export CORS is removed. OTA
+  validates multipart/boundary and completed-image state, resets per-request
+  state and handles aborts before permitting a restart. See
+  [API migration](docs/API_MIGRATION.md) for method changes.
 
 - **Status readout.** The sidebar shows "Online · <clock style>" (or "display
   off"), and "Offline" when the device stops answering. Upstream's shows

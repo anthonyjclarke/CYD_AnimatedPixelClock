@@ -18,6 +18,8 @@
 const int DIGIT_X[5] = {DIGIT_X_0, DIGIT_X_1, DIGIT_X_2, DIGIT_X_3, DIGIT_X_4};
 
 // Progressive fragmentation: spawn 25%, then 50%, then 25%
+uint8_t cycleActiveStyle = 255;
+
 const float FRAGMENT_SPAWN_PERCENT[3] = {0.25, 0.50, 0.25};
 
 // ========== Mario Clock Globals ==========

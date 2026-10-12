@@ -194,6 +194,7 @@ void cycleClockScreens() {
     resetClockAnimationState();
     lastStyle = entries[index].style;
   }
+  cycleActiveStyle = entries[index].style;
   switch (entries[index].style) {
     case 0: displayClockWithMario(); break;
     case 1: displayStandardClock(); break;
@@ -378,8 +379,7 @@ void setup() {
   // Setup web server
   setupWebServer();
 
-  // Background weather fetcher (idles cheaply while weather is disabled)
-  startWeatherTask();
+  // weatherLoop() starts a background task only when a fetch is due.
 
   // Show IP address for 5 seconds (configurable via web interface)
   if (displayAvailable && settings.showIPAtBoot) {
@@ -476,6 +476,8 @@ void loop() {
   // Handle web server requests
   server.handleClient();
   loopMark("web server");
+  weatherLoop();
+  loopMark("weather scheduler");
 
   // Web installer over USB: device info, WiFi changes. See improv_setup.h.
   improvTick();

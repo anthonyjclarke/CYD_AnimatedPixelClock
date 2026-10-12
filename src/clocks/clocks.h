@@ -48,7 +48,12 @@ void maintainTimeOverride(const struct tm* timeinfo, bool animationIdle);
 void resetClockAnimationState();
 
 // Draw a compact AM/PM indicator when 12-hour mode is active
+bool showMeridiem();
 void drawMeridiemIndicator(int x, int y, bool isPM);
+
+uint16_t dateColor();
+void formatDate(char* buf, size_t len, const struct tm* t);
+void drawDate(int x, int y, const struct tm* t);
 
 // Digit bounce animation shared by multiple clocks
 void triggerDigitBounce(int digitIndex);

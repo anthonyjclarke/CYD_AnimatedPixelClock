@@ -14,6 +14,9 @@
 // Standard digit X positions for time display (18px spacing)
 extern const int DIGIT_X[5];
 
+// Clock currently rendered by Cycle All; 255 until its first frame.
+extern uint8_t cycleActiveStyle;
+
 // Progressive fragmentation spawn percentages
 extern const float FRAGMENT_SPAWN_PERCENT[3];
 

@@ -2,12 +2,13 @@
  * AnimatedPixelClock - Weather Module (Open-Meteo)
  *
  * The fetch (DNS + TLS handshake + transfer) can block for seconds, so it
- * runs in its own task pinned to core 0 - never in loop(), where it would
+ * runs in a task for one fetch, pinned to core 0 - never in loop(), where it would
  * visibly freeze a 60 Hz animation. Results are copied into `published`
  * under a spinlock; the render loop takes snapshots via getWeather().
  */
 
 #include "weather.h"
+#include "weather_parse.h"
 
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
@@ -25,7 +26,10 @@
 
 static WeatherData published = {};
 static portMUX_TYPE weatherMux = portMUX_INITIALIZER_UNLOCKED;
-static TaskHandle_t weatherTaskHandle = nullptr;
+struct WeatherRequest {float lat,lon;char key[33];uint32_t generation;};
+static WeatherRequest request;
+static bool fetchBusy=false, fetchKick=true;
+static uint32_t generation=0, waitFrom=0, waitMs=0;
 
 bool weatherConfigured() {
   // 0,0 (middle of the Atlantic) doubles as the "unset" marker.
@@ -64,29 +68,23 @@ WeatherIconKind weatherIconFromCode(int code) {
   return WICON_RAIN;
 }
 
-// Copy "HH:MM" out of an ISO-8601 timestamp ("2026-07-03T04:30").
-static void extractClockTime(const char* iso, char out[6]) {
-  out[0] = '\0';
-  if (!iso) return;
-  const char* t = strchr(iso, 'T');
-  if (t && strlen(t) >= 6) {
-    memcpy(out, t + 1, 5);
-    out[5] = '\0';
-  }
-}
-
-static bool fetchWeather() {
-  char url[320];
-  bool hasKey = settings.weatherApiKey[0] != '\0';
+static bool fetchWeather(const WeatherRequest& req) {
+  char url[512];
+  bool hasKey = req.key[0] != '\0';
   // The commercial tier uses the same API on a customer- host with an apikey.
-  snprintf(url, sizeof(url),
-           "https://%s/v1/forecast?latitude=%.4f&longitude=%.4f"
-           "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m"
-           "&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset"
-           "&timezone=auto&forecast_days=1%s%s",
-           hasKey ? "customer-api.open-meteo.com" : "api.open-meteo.com",
-           settings.weatherLat, settings.weatherLon,
-           hasKey ? "&apikey=" : "", hasKey ? settings.weatherApiKey : "");
+  int urlLength = snprintf(url, sizeof(url),
+      "https://%s/v1/forecast?latitude=%.4f&longitude=%.4f"
+      "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,is_day"
+      "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset"
+      "&hourly=temperature_2m,precipitation_probability&forecast_hours=%d"
+      "&timezone=auto&forecast_days=%d%s%s",
+      hasKey?"customer-api.open-meteo.com":"api.open-meteo.com",req.lat,req.lon,
+      WEATHER_FORECAST_HOURS,1+WEATHER_FORECAST_DAYS,hasKey?"&apikey=":"",hasKey?req.key:"");
+
+  if (urlLength < 0 || urlLength >= (int)sizeof(url)) {
+    DBG_WARN("Weather request URL too long");
+    return false;
+  }
 
   WiFiClientSecure client;
   client.setInsecure();  // public, non-sensitive data; saves a cert bundle
@@ -102,32 +100,21 @@ static bool fetchWeather() {
     return false;
   }
 
+  JsonDocument filter;
+  filter["current"]=true;filter["daily"]=true;filter["hourly"]=true;
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, http.getStream());
+  DeserializationError err = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
   http.end();
   if (err) {
     DBG_INFO("Weather JSON error: %s", err.c_str());
     return false;
   }
 
-  JsonObject current = doc["current"];
-  JsonObject daily = doc["daily"];
-  if (current.isNull() || daily.isNull()) return false;
-
-  WeatherData fresh = {};
-  fresh.valid = true;
-  fresh.tempC = current["temperature_2m"] | 0.0f;
-  fresh.humidity = current["relative_humidity_2m"] | 0;
-  fresh.weatherCode = current["weather_code"] | 3;
-  fresh.windKmh = current["wind_speed_10m"] | 0.0f;
-  fresh.tempMaxC = daily["temperature_2m_max"][0] | 0.0f;
-  fresh.tempMinC = daily["temperature_2m_min"][0] | 0.0f;
-  extractClockTime(daily["sunrise"][0], fresh.sunrise);
-  extractClockTime(daily["sunset"][0], fresh.sunset);
-  fresh.fetchedAt = millis();
-
+  WeatherData fresh;
+  if (!decodeWeather(doc,fresh)) return false;
+  fresh.fetchedAt=millis();
   portENTER_CRITICAL(&weatherMux);
-  published = fresh;
+  if (req.generation==generation) published=fresh;
   portEXIT_CRITICAL(&weatherMux);
   netMarkOutboundOk();
 
@@ -136,28 +123,45 @@ static bool fetchWeather() {
   return true;
 }
 
-static void weatherTask(void*) {
-  for (;;) {
-    if (!weatherConfigured() || !weatherOnScreen() ||
-        WiFi.status() != WL_CONNECTED) {
-      ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(WEATHER_IDLE_POLL_MS));
-      continue;
-    }
-    bool ok = fetchWeather();
-    // Sleeps the full interval, but a settings change (new location, toggle)
-    // kicks the task awake early via weatherSettingsChanged().
-    ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(ok ? WEATHER_FETCH_INTERVAL_MS
-                                              : WEATHER_RETRY_INTERVAL_MS));
-  }
+static void weatherFetchTask(void*) {
+  const WeatherRequest snapshot=request;
+  bool ok=fetchWeather(snapshot);
+  portENTER_CRITICAL(&weatherMux);
+  waitFrom=millis();waitMs=ok?WEATHER_FETCH_INTERVAL_MS:WEATHER_RETRY_INTERVAL_MS;
+  fetchBusy=false;
+  portEXIT_CRITICAL(&weatherMux);
+  vTaskDelete(nullptr);
 }
 
 void weatherSettingsChanged() {
-  if (weatherTaskHandle) xTaskNotifyGive(weatherTaskHandle);
+  portENTER_CRITICAL(&weatherMux);
+  ++generation;fetchKick=true;published.valid=false;
+  portEXIT_CRITICAL(&weatherMux);
 }
 
-void startWeatherTask() {
-  if (weatherTaskHandle) return;
-  // Core 0: the Arduino loop (and the HUB75 DMA refresh) live on core 1.
-  xTaskCreatePinnedToCore(weatherTask, "weather", 8192, nullptr, 1,
-                          &weatherTaskHandle, 0);
+void weatherLoop() {
+  const uint32_t now=millis();
+  portENTER_CRITICAL(&weatherMux);
+  if (fetchBusy) {portEXIT_CRITICAL(&weatherMux);return;}
+  if (fetchKick) {fetchKick=false;waitMs=0;}
+  bool due=(uint32_t)(now-waitFrom)>=waitMs;
+  portEXIT_CRITICAL(&weatherMux);
+  if (!due) return;
+  if (!weatherConfigured() || !weatherOnScreen() || WiFi.status()!=WL_CONNECTED) {
+    portENTER_CRITICAL(&weatherMux);
+    waitFrom=now;waitMs=WEATHER_IDLE_POLL_MS;
+    portEXIT_CRITICAL(&weatherMux);return;
+  }
+  // Web/settings changes and this scheduler run on the Arduino loop core.
+  request.lat=settings.weatherLat;request.lon=settings.weatherLon;
+  memcpy(request.key,settings.weatherApiKey,sizeof(request.key));
+  portENTER_CRITICAL(&weatherMux);
+  request.generation=generation;fetchBusy=true;
+  portEXIT_CRITICAL(&weatherMux);
+  if (xTaskCreatePinnedToCore(weatherFetchTask,"weather",8192,nullptr,1,nullptr,0)!=pdPASS) {
+    portENTER_CRITICAL(&weatherMux);
+    fetchBusy=false;waitFrom=now;waitMs=WEATHER_RETRY_INTERVAL_MS;
+    portEXIT_CRITICAL(&weatherMux);
+    DBG_WARN("Weather task not started; retry in one minute");
+  }
 }

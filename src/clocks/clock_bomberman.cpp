@@ -307,6 +307,6 @@ void displayClockWithBomberman() {
     }
   }
   drawHero(now);
-  if(!settings.use24Hour) drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, 3, pm);
+  if(showMeridiem()) drawMeridiemIndicator(SCREEN_WIDTH - 2 * TEXT1_W - 2, 3, pm);
   if(!wifiConnected) drawNoWiFiIcon(0,3);
 }

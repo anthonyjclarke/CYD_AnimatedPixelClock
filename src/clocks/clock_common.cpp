@@ -10,11 +10,12 @@
 #include "../display/display.h"
 
 // Time-digit + colon color for the ACTIVE clock style. Each style keeps its own
-// digit color (COL_DIGITS_S0 + style). Cycle All (style 9) uses its own slot for
-// every screen it rotates through. Declared in display.h so every renderer can
+// digit color (COL_DIGITS_S0 + style). Cycle All (style 9) uses the colour of
+// the clock currently on screen. Declared in display.h so every renderer can
 // call it in place of the old global digitColor().
 uint16_t digitColor() {
   uint8_t s = settings.clockStyle;
+  if (s == 9 && cycleActiveStyle != 255) s = cycleActiveStyle;
   if (s == 17) return SPRITE_COLOR(COL_DIGITS_S17);
   if (s == 16) return SPRITE_COLOR(COL_DIGITS_S16);
   if (s == 15) return SPRITE_COLOR(COL_DIGITS_S15);
@@ -131,7 +132,12 @@ void updateDisplayedTimeDigit(uint8_t digitIndex, uint8_t newValue) {
     displayed_min = minTens * 10 + minOnes;
   }
 
-  if (!settings.use24Hour && oldHour == 11 && displayed_hour == 12) {
+  if (settings.use24Hour) {
+    // Although hidden in 24-hour mode, this flag participates in the shared
+    // time comparison. Keep it current so noon/midnight decoding can release
+    // the override as soon as the displayed digits match real time.
+    displayed_is_pm = displayed_hour >= 12;
+  } else if (oldHour == 11 && displayed_hour == 12) {
     displayed_is_pm = !displayed_is_pm;
   }
 
@@ -161,14 +167,40 @@ void maintainTimeOverride(const struct tm* timeinfo, bool animationIdle) {
   }
 }
 
+bool showMeridiem() { return !settings.use24Hour && !settings.hideAmPm; }
+
 void drawMeridiemIndicator(int x, int y, bool isPM) {
-  if (settings.use24Hour) {
+  if (!showMeridiem()) {
     return;
   }
 
   display.setTextSize(1);
+  display.setTextColor(dateColor());
   display.setCursor(x, y);
   display.print(isPM ? "PM" : "AM");
+  display.setTextColor(DISPLAY_WHITE);
+}
+
+uint16_t dateColor() { return SPRITE_COLOR(COL_DATE); }
+
+void formatDate(char* buf, size_t len, const struct tm* t) {
+  int d = t->tm_mday, m = t->tm_mon + 1, y = t->tm_year + 1900;
+  switch (settings.dateFormat) {
+    case 1: snprintf(buf, len, "%02d/%02d/%04d", m, d, y); break;
+    case 2: snprintf(buf, len, "%04d-%02d-%02d", y, m, d); break;
+    case 3: snprintf(buf, len, "%02d.%02d.%04d", d, m, y); break;
+    default: snprintf(buf, len, "%02d/%02d/%04d", d, m, y); break;
+  }
+}
+
+void drawDate(int x, int y, const struct tm* t) {
+  char dateStr[12];
+  formatDate(dateStr, sizeof(dateStr), t);
+  display.setTextSize(1);
+  display.setTextColor(dateColor());
+  display.setCursor(x, y);
+  display.print(dateStr);
+  display.setTextColor(DISPLAY_WHITE);
 }
 
 // ========== Digit Bounce Animation ==========
@@ -298,29 +330,17 @@ void displayStandardClock() {
   display.setTextSize(1);
   char dateStr[12];
 
-  switch (settings.dateFormat) {
-    case 0:  // DD/MM/YYYY
-      sprintf(dateStr, "%02d/%02d/%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900);
-      break;
-    case 1:  // MM/DD/YYYY
-      sprintf(dateStr, "%02d/%02d/%04d", timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_year + 1900);
-      break;
-    case 2:  // YYYY-MM-DD
-      sprintf(dateStr, "%04d-%02d-%02d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday);
-      break;
-    case 3:  // DD.MM.YYYY
-      sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900);
-      break;
-  }
+  formatDate(dateStr, sizeof(dateStr), &timeinfo);
 
-  display.setCursor(centerText1(strlen(dateStr)), DATE_Y);
-  display.print(dateStr);
+  drawDate(centerText1(strlen(dateStr)), DATE_Y, &timeinfo);
 
   // Day of week
   const char* days[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
   const char* dayName = days[timeinfo.tm_wday];
   display.setCursor(centerText1(strlen(dayName)), DAY_Y);
+  display.setTextColor(dateColor());
   display.print(dayName);
+  display.setTextColor(DISPLAY_WHITE);
 
   // Draw no-WiFi icon if disconnected
   if (!wifiConnected) {
@@ -373,23 +393,9 @@ void displayLargeClock() {
   display.setTextSize(1);
   char dateStr[12];
 
-  switch (settings.dateFormat) {
-    case 0:  // DD/MM/YYYY
-      sprintf(dateStr, "%02d/%02d/%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900);
-      break;
-    case 1:  // MM/DD/YYYY
-      sprintf(dateStr, "%02d/%02d/%04d", timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_year + 1900);
-      break;
-    case 2:  // YYYY-MM-DD
-      sprintf(dateStr, "%04d-%02d-%02d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday);
-      break;
-    case 3:  // DD.MM.YYYY
-      sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900);
-      break;
-  }
+  formatDate(dateStr, sizeof(dateStr), &timeinfo);
 
-  display.setCursor(centerText1(strlen(dateStr)), SCREEN_HEIGHT - TEXT1_H - 2);
-  display.print(dateStr);
+  drawDate(centerText1(strlen(dateStr)), SCREEN_HEIGHT - TEXT1_H - 2, &timeinfo);
 
   // Draw no-WiFi icon if disconnected
   if (!wifiConnected) {
