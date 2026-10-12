@@ -1,24 +1,20 @@
 # CLAUDE.md — CYD_AnimatedPixelClock
 
 Port of **AnimatedPixelClock** (Keralots, MIT, upstream v2.3.0) from ESP32-S3 +
-2× 64×64 HUB75 panels to the ESP32 Cheap Yellow Display. Uncompiled upstream
-assets live in `archive/` (its README says what restoring each takes); a
-pristine upstream copy sits at `PlatformIO/Projects/AnimatedPixelClock`.
+HUB75 to the ESP32 CYD. Uncompiled upstream assets: `archive/` (see its README);
+a pristine upstream copy sits at `PlatformIO/Projects/AnimatedPixelClock`.
 
-`FIRMWARE_VERSION` in `include/config.h` is the only place the version lives.
-Releases are on `main`, tagged `vX.Y.Z`; `dev` carries a `-dev` suffix. Never
-release from `dev` or tag with the suffix — it reaches the serial log, web UI,
-`/api/info` and mDNS, so a wrong one is wrong five ways.
+`FIRMWARE_VERSION` (`include/config.h`) is the only version source. Releases:
+`main`, tagged `vX.Y.Z`; `dev` has a `-dev` suffix. Never release from `dev` or
+tag with the suffix — it reaches serial, web UI, `/api/info`, mDNS and Improv.
 
 ## Target hardware
 
-Three envs, all plain `esp32dev`, 4 MB, no PSRAM: `esp32-cyd-24` and
-`esp32-cyd-28` (ILI9341 320×240, backlight GPIO 21, SPI 55 MHz) and
-`esp32-cyd-40` (ESP32-32E, ST7796S 480×320, backlight GPIO 27, SPI 40 MHz).
-The display is on HSPI's native pins. Touch is an XPT2046 with its own VSPI pins
-on the 2.4″/2.8″, but on the display's SPI lines on the 4.0″ (confirmed on an
-ESP32-32E) — see `TOUCH_CS`. Capacitive boards: `HAS_RESISTIVE_TOUCH=0`.
-RGB LED is red GPIO 4 / green 16 / blue 17, but red is GPIO 22 on the 4.0″.
+Three envs, all plain `esp32dev`, 4 MB, no PSRAM: `esp32-cyd-24`, `esp32-cyd-28`
+(ILI9341 320×240) and `esp32-cyd-40` (ESP32-32E, ST7796S 480×320). Display on
+HSPI's native pins. XPT2046 touch has its own VSPI pins on the 2.4″/2.8″ but
+shares the display's SPI lines on the 4.0″ — see `TOUCH_CS`. RGB LED red is
+GPIO 22 on the 4.0″ (4 elsewhere). Capacitive boards: `HAS_RESISTIVE_TOUCH=0`.
 
 ## Rendering model — the central architectural decision
 

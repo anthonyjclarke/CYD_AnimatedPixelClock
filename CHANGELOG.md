@@ -25,7 +25,10 @@ and deploys the web installer. Nothing is published by hand.
 
 ---
 
-## [Unreleased] — 2.1.0-dev
+## [2.0.2] 12-10-2026
+
+A patch for Weather on the 4.0″. No settings, partition or API changes; Update
+keeps WiFi and settings.
 
 ### Fixed
 

@@ -1,8 +1,9 @@
 # Regression checks
 
-Release 2.0.1: all three builds and both host suites passed; the user confirmed
-the Weather fix on hardware. Keep actual board logs/measurements with future
-release verification rather than accumulating phase plans.
+Release 2.0.2: all three builds and both host suites passed; Weather loaded on a
+4.0″ over HTTP (minimum free heap 86 KB vs 44.6 KB on failed HTTPS). Keep actual
+board logs/measurements with future release verification rather than
+accumulating phase plans.
 
 ## Automated
 
